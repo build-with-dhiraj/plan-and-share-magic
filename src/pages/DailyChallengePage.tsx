@@ -45,9 +45,12 @@ function seededShuffle<T>(arr: T[], seed: number): T[] {
   return a;
 }
 
-function getDailyQuestions(): MCQ[] {
+async function getDailyQuestions(): Promise<MCQ[]> {
   const seed = getDailySeed();
-  return seededShuffle(sampleMCQs, seed).slice(0, DAILY_Q_COUNT);
+  // Try DB first, fallback to sample
+  const dbMCQs = await fetchMCQs({ dailyEligible: true, limit: 50 });
+  const pool = dbMCQs.length >= DAILY_Q_COUNT ? dbMCQs : sampleMCQs;
+  return seededShuffle(pool, seed).slice(0, DAILY_Q_COUNT);
 }
 
 function getTodayKey() {
