@@ -14,16 +14,309 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      bookmarks: {
+        Row: {
+          created_at: string
+          id: string
+          item_id: string
+          item_type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_id: string
+          item_type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_id?: string
+          item_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      daily_completions: {
+        Row: {
+          attempt_id: string | null
+          challenge_date: string
+          completed_at: string
+          completion_bonus: number
+          id: string
+          score: number
+          total_xp: number
+          user_id: string
+        }
+        Insert: {
+          attempt_id?: string | null
+          challenge_date?: string
+          completed_at?: string
+          completion_bonus?: number
+          id?: string
+          score: number
+          total_xp?: number
+          user_id: string
+        }
+        Update: {
+          attempt_id?: string | null
+          challenge_date?: string
+          completed_at?: string
+          completion_bonus?: number
+          id?: string
+          score?: number
+          total_xp?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_completions_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "quiz_attempts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          exam_target: string | null
+          id: string
+          onboarding_complete: boolean | null
+          optional_subjects: string[] | null
+          study_hours_per_day: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          exam_target?: string | null
+          id?: string
+          onboarding_complete?: boolean | null
+          optional_subjects?: string[] | null
+          study_hours_per_day?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          exam_target?: string | null
+          id?: string
+          onboarding_complete?: boolean | null
+          optional_subjects?: string[] | null
+          study_hours_per_day?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      quiz_answers: {
+        Row: {
+          attempt_id: string
+          created_at: string
+          id: string
+          is_correct: boolean
+          question_id: string
+          selected_index: number
+          time_taken_seconds: number | null
+          user_id: string
+          xp_earned: number
+        }
+        Insert: {
+          attempt_id: string
+          created_at?: string
+          id?: string
+          is_correct: boolean
+          question_id: string
+          selected_index: number
+          time_taken_seconds?: number | null
+          user_id: string
+          xp_earned?: number
+        }
+        Update: {
+          attempt_id?: string
+          created_at?: string
+          id?: string
+          is_correct?: boolean
+          question_id?: string
+          selected_index?: number
+          time_taken_seconds?: number | null
+          user_id?: string
+          xp_earned?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_answers_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "quiz_attempts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quiz_attempts: {
+        Row: {
+          best_streak: number
+          completed_at: string
+          correct_answers: number
+          duration_seconds: number | null
+          id: string
+          quiz_type: string
+          timed_mode: boolean | null
+          topic: string | null
+          total_questions: number
+          total_xp: number
+          user_id: string
+        }
+        Insert: {
+          best_streak?: number
+          completed_at?: string
+          correct_answers: number
+          duration_seconds?: number | null
+          id?: string
+          quiz_type: string
+          timed_mode?: boolean | null
+          topic?: string | null
+          total_questions: number
+          total_xp?: number
+          user_id: string
+        }
+        Update: {
+          best_streak?: number
+          completed_at?: string
+          correct_answers?: number
+          duration_seconds?: number | null
+          id?: string
+          quiz_type?: string
+          timed_mode?: boolean | null
+          topic?: string | null
+          total_questions?: number
+          total_xp?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      spaced_cards: {
+        Row: {
+          created_at: string
+          ease_factor: number
+          id: string
+          interval_days: number
+          last_reviewed_at: string | null
+          next_review: string
+          question_id: string
+          repetitions: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          ease_factor?: number
+          id?: string
+          interval_days?: number
+          last_reviewed_at?: string | null
+          next_review?: string
+          question_id: string
+          repetitions?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          ease_factor?: number
+          id?: string
+          interval_days?: number
+          last_reviewed_at?: string | null
+          next_review?: string
+          question_id?: string
+          repetitions?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_streaks: {
+        Row: {
+          current_streak: number
+          id: string
+          last_activity_date: string | null
+          longest_streak: number
+          total_xp: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          current_streak?: number
+          id?: string
+          last_activity_date?: string | null
+          longest_streak?: number
+          total_xp?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          current_streak?: number
+          id?: string
+          last_activity_date?: string | null
+          longest_streak?: number
+          total_xp?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
-      [_ in never]: never
+      daily_leaderboard: {
+        Row: {
+          avatar_url: string | null
+          challenge_date: string | null
+          display_name: string | null
+          rank: number | null
+          score: number | null
+          total_xp: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +443,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+    },
   },
 } as const
