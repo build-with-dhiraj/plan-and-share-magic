@@ -23,8 +23,8 @@ const SettingsPage = () => {
   };
 
   return (
-    <div className="container max-w-3xl py-6 px-4 pb-24 lg:pb-6">
-      <h1 className="text-2xl font-bold text-foreground tracking-tight mb-6">Settings</h1>
+    <div className="container max-w-3xl py-4 sm:py-6 px-4 pb-24 lg:pb-6">
+      <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight mb-6">Settings</h1>
 
       <div className="space-y-4">
         <Card className="glass-card">

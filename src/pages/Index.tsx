@@ -71,7 +71,7 @@ const Index = () => {
           synopsis: a.summary || "",
           gsTags: gsTags.length > 0 ? gsTags : (["polity"] as GsTag[]),
           sourceCount: 1,
-          confidence: 0.85,
+          confidence: null,
           staticAnchor: undefined,
           isHero: false,
         };
@@ -83,7 +83,7 @@ const Index = () => {
   const displayArticles = articles.map((a, i) => ({ ...a, isHero: i === 0 }));
 
   return (
-    <div className="container max-w-3xl py-4 sm:py-6 px-4">
+    <div className="container max-w-3xl py-4 sm:py-6 px-4 pb-24 lg:pb-6">
       <div className="mb-4 sm:mb-6">
         <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">Today's Brief</h1>
         <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">

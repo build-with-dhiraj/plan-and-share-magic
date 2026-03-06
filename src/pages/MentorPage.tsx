@@ -98,7 +98,7 @@ const MentorPage = () => {
   const isEmpty = messages.length === 0;
 
   return (
-    <div className="container max-w-3xl py-4 px-4 flex flex-col h-[calc(100vh-8rem)]">
+    <div className="container max-w-3xl py-4 px-4 flex flex-col h-[calc(100dvh-10rem)] lg:h-[calc(100dvh-6rem)]">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
@@ -108,7 +108,7 @@ const MentorPage = () => {
               AI Study Mentor
             </h1>
             <p className="text-xs text-muted-foreground">
-              Powered by your content pipeline • GPT-4.1
+              AI-powered • Context from your content pipeline
             </p>
           </div>
         </div>

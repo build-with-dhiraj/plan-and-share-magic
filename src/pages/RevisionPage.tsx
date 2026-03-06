@@ -49,7 +49,7 @@ const RevisionPage = () => {
   };
 
   return (
-    <div className="container max-w-2xl py-6 px-4 pb-24 lg:pb-6">
+    <div className="container max-w-2xl py-4 sm:py-6 px-4 pb-24 lg:pb-6">
       <AnimatePresence mode="wait">
         {pageState === "queue" && (
           <motion.div
@@ -60,7 +60,7 @@ const RevisionPage = () => {
           >
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h1 className="text-2xl font-bold text-foreground tracking-tight">Revision</h1>
+                <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">Revision</h1>
                 <p className="text-sm text-muted-foreground mt-1">Spaced repetition queue (SM-2)</p>
               </div>
               <XPStreakWidget />

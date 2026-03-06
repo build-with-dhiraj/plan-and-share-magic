@@ -12,6 +12,8 @@ import { QuizQuestion } from "@/components/practice/QuizQuestion";
 import { cn } from "@/lib/utils";
 import { useQuizPersist } from "@/hooks/useQuizPersist";
 import { fetchMCQs } from "@/hooks/useMCQBank";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 type ChallengeState = "lobby" | "active" | "complete";
 
@@ -58,17 +60,8 @@ function getTodayKey() {
   return `daily-${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 }
 
-// Mock leaderboard
-const MOCK_LEADERBOARD: LeaderboardEntry[] = [
-  { rank: 1, name: "Priya S.", score: 5, xp: 95, time: 42, streak: 5 },
-  { rank: 2, name: "Arjun K.", score: 5, xp: 88, time: 58, streak: 5 },
-  { rank: 3, name: "Sneha M.", score: 4, xp: 72, time: 65, streak: 4 },
-  { rank: 4, name: "Rahul D.", score: 4, xp: 68, time: 78, streak: 3 },
-  { rank: 5, name: "Kavya R.", score: 3, xp: 55, time: 90, streak: 3 },
-  { rank: 6, name: "Amit P.", score: 3, xp: 48, time: 102, streak: 2 },
-  { rank: 7, name: "Neha G.", score: 2, xp: 35, time: 115, streak: 2 },
-  { rank: 8, name: "Vikram J.", score: 2, xp: 28, time: 130, streak: 1 },
-];
+// Fallback leaderboard (used while loading)
+const FALLBACK_LEADERBOARD: LeaderboardEntry[] = [];
 
 const rankIcons = [Crown, Medal, Medal];
 const rankColors = ["text-accent", "text-muted-foreground", "text-[hsl(var(--gs-history))]"];
@@ -81,11 +74,31 @@ const DailyChallengePage = () => {
   const [totalXP, setTotalXP] = useState(0);
   const [completedToday, setCompletedToday] = useState(false);
 
-  const [questions, setQuestions] = useState<MCQ[]>([]);
+  // Fetch real leaderboard from DB
+  const { data: dbLeaderboard = [] } = useQuery({
+    queryKey: ["daily-leaderboard"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("daily_leaderboard")
+        .select("*")
+        .order("rank", { ascending: true })
+        .limit(10);
+      return (data ?? []).map((e: any) => ({
+        rank: Number(e.rank),
+        name: e.display_name || "Anonymous",
+        score: e.score ?? 0,
+        xp: e.total_xp ?? 0,
+        time: 0,
+        streak: 0,
+        isYou: false,
+      })) as LeaderboardEntry[];
+    },
+  });
 
   useEffect(() => {
     getDailyQuestions().then(setQuestions);
   }, []);
+  const [questions, setQuestions] = useState<MCQ[]>([]);
 
   useEffect(() => {
     const saved = localStorage.getItem(getTodayKey());
@@ -147,7 +160,8 @@ const DailyChallengePage = () => {
 
   // Build leaderboard with user inserted
   const leaderboard = useMemo(() => {
-    if (state !== "complete") return MOCK_LEADERBOARD;
+    const base = dbLeaderboard.length > 0 ? dbLeaderboard : FALLBACK_LEADERBOARD;
+    if (state !== "complete") return base;
     const userEntry: LeaderboardEntry = {
       rank: 0,
       name: "You",
@@ -157,9 +171,9 @@ const DailyChallengePage = () => {
       streak,
       isYou: true,
     };
-    const all = [...MOCK_LEADERBOARD, userEntry].sort((a, b) => b.xp - a.xp);
+    const all = [...base, userEntry].sort((a, b) => b.xp - a.xp);
     return all.map((e, i) => ({ ...e, rank: i + 1 }));
-  }, [state, correctCount, totalXP, streak]);
+  }, [state, correctCount, totalXP, streak, dbLeaderboard]);
 
   const todayDate = new Date().toLocaleDateString("en-IN", {
     weekday: "long",
@@ -242,8 +256,8 @@ const DailyChallengePage = () => {
                 <Crown className="h-4 w-4 text-accent" /> Today's Leaderboard
               </h2>
               <div className="glass-card rounded-xl divide-y divide-border overflow-hidden">
-                {MOCK_LEADERBOARD.slice(0, 5).map((entry) => (
-                  <LeaderboardRow key={entry.rank} entry={entry} />
+                {(dbLeaderboard.length > 0 ? dbLeaderboard : FALLBACK_LEADERBOARD).slice(0, 5).map((entry, i) => (
+                  <LeaderboardRow key={`lb-${i}`} entry={entry} />
                 ))}
               </div>
               {completedToday && (

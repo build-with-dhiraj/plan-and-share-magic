@@ -1,8 +1,9 @@
 import { Link, useLocation } from "react-router-dom";
-import { Search, User, Flame, Bot } from "lucide-react";
+import { Search, User, Flame, Bookmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 const NAV_ITEMS = [
   { label: "Today", path: "/" },
@@ -33,7 +34,7 @@ export function DesktopNav() {
                 to={item.path}
                 className={cn(
                   "px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                  location.pathname === item.path
+                (item.path === "/" ? location.pathname === "/" : location.pathname.startsWith(item.path))
                     ? "bg-primary/10 text-primary"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 )}
@@ -44,22 +45,49 @@ export function DesktopNav() {
           </nav>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" asChild>
-            <Link to="/search">
-              <Search className="h-4 w-4" />
-            </Link>
-          </Button>
-          <Button variant="ghost" size="icon" asChild>
-            <Link to="/dashboard">
-              <Flame className="h-4 w-4" />
-            </Link>
-          </Button>
-          <ThemeToggle />
-          <Button variant="ghost" size="icon" asChild>
-            <Link to="/settings">
-              <User className="h-4 w-4" />
-            </Link>
-          </Button>
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" asChild>
+                  <Link to="/search">
+                    <Search className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Search</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" asChild>
+                  <Link to="/saved">
+                    <Bookmark className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Saved</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" asChild>
+                  <Link to="/dashboard">
+                    <Flame className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Dashboard</TooltipContent>
+            </Tooltip>
+            <ThemeToggle />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" asChild>
+                  <Link to="/settings">
+                    <User className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Settings</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
     </header>

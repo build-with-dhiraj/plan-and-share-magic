@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Search, X, FileText, Lightbulb, HelpCircle, Filter, ChevronDown, Layers, BookOpen, Globe, Shield, Leaf, Beaker, Scale, PenTool, Mountain, Users, Clock } from "lucide-react";
@@ -50,6 +50,14 @@ const CONTENT_LAYERS = [
 
 type ContentType = "all" | "articles" | "facts" | "mcqs";
 
+// Map tag slugs to their GS paper for filtering
+const TAG_TO_GS: Record<string, string> = {
+  polity: "GS-II", governance: "GS-II", ir: "GS-II", international: "GS-II",
+  economy: "GS-III", environment: "GS-III", science: "GS-III", security: "GS-III",
+  ethics: "GS-IV",
+  history: "GS-I", geography: "GS-I", society: "GS-I", culture: "GS-I",
+};
+
 // Normalize a syllabus tag to find its GS paper
 function tagToGS(tag: string): string | null {
   const t = tag.toLowerCase();
@@ -79,11 +87,27 @@ function tagColorClass(tag: string): string {
 }
 
 const SearchPage = () => {
+  const [searchParams] = useSearchParams();
+  const tagParam = searchParams.get("tag");
+
   const [query, setQuery] = useState("");
   const [contentType, setContentType] = useState<ContentType>("all");
   const [selectedGS, setSelectedGS] = useState<string[]>([]);
   const [selectedLayers, setSelectedLayers] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
+
+  // Auto-apply tag from URL param on mount
+  useEffect(() => {
+    if (tagParam) {
+      const gsKey = TAG_TO_GS[tagParam.toLowerCase()];
+      if (gsKey) {
+        setSelectedGS([gsKey]);
+        setShowFilters(true);
+      }
+      // Also set query to the tag name for text-based filtering
+      setQuery(tagParam.charAt(0).toUpperCase() + tagParam.slice(1));
+    }
+  }, [tagParam]);
 
   const debouncedQuery = useDebounce(query, 300);
 
@@ -148,7 +172,7 @@ const SearchPage = () => {
   const clearFilters = () => { setSelectedGS([]); setSelectedLayers([]); };
 
   return (
-    <div className="container max-w-4xl py-4 sm:py-6 px-4">
+    <div className="container max-w-4xl py-4 sm:py-6 px-4 pb-24 lg:pb-6">
       {/* Search bar */}
       <div className="relative mb-4">
         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-muted-foreground" />
@@ -270,7 +294,7 @@ const SearchPage = () => {
           <div className="text-center py-12 text-muted-foreground text-sm">Searching...</div>
         )}
 
-        {!isLoading && !query && !hasActiveFilters && (
+      {!isLoading && !query && !hasActiveFilters && !tagParam && (
           <div className="text-center py-12 text-muted-foreground space-y-2">
             <Search className="h-8 w-8 mx-auto text-muted-foreground/40" />
             <p className="text-sm">Search across all issues, facts, and topics</p>

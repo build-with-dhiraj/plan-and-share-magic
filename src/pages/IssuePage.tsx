@@ -1,9 +1,10 @@
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { BookOpen, Brain, PenTool, Clock, ExternalLink, Loader2, Lightbulb, HelpCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { BookOpen, Brain, PenTool, Clock, ExternalLink, Loader2, Lightbulb, HelpCircle, ArrowLeft } from "lucide-react";
 
 function tagColorClass(tag: string): string {
   const t = tag.toLowerCase();
@@ -21,6 +22,7 @@ function tagColorClass(tag: string): string {
 
 const IssuePage = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
 
   const { data: article, isLoading } = useQuery({
     queryKey: ["article", id],
@@ -88,7 +90,10 @@ const IssuePage = () => {
     : "";
 
   return (
-    <div className="container max-w-4xl py-4 sm:py-6 px-4">
+    <div className="container max-w-4xl py-4 sm:py-6 px-4 pb-24 lg:pb-6">
+      <Button variant="ghost" size="icon" className="h-8 w-8 mb-3" onClick={() => navigate(-1)}>
+        <ArrowLeft className="h-4 w-4" />
+      </Button>
       <div className="mb-5">
         <div className="flex items-center gap-1.5 mb-2.5 flex-wrap">
           {tags.map((tag: string) => (

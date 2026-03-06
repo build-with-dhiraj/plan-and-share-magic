@@ -1,9 +1,14 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Bookmark, RotateCcw, ChevronRight } from "lucide-react";
+import { Bookmark, BookmarkCheck, RotateCcw, ChevronRight } from "lucide-react";
 import { SyllabusTagChip } from "./SyllabusTagChips";
 import { ConfidenceBadge } from "./ConfidenceBadge";
 import { SourceBadge } from "./SourceBadge";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { useAuth } from "@/hooks/useAuth";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export type GsTag = "polity" | "economy" | "environment" | "ir" | "science" | "ethics" | "essay" | "history" | "geography" | "society";
 
@@ -13,12 +18,47 @@ interface IssueCardProps {
   synopsis: string;
   gsTags: readonly GsTag[];
   sourceCount: number;
-  confidence: number;
+  confidence: number | null;
   staticAnchor?: string;
   isHero?: boolean;
 }
 
 export function IssueCard({ id, title, synopsis, gsTags, sourceCount, confidence, staticAnchor, isHero }: IssueCardProps) {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  const { data: isBookmarked = false } = useQuery({
+    queryKey: ["bookmark-status", user?.id, id],
+    queryFn: async () => {
+      if (!user) return false;
+      const { data } = await supabase
+        .from("bookmarks")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("item_id", id)
+        .eq("item_type", "article")
+        .maybeSingle();
+      return !!data;
+    },
+    enabled: !!user,
+  });
+
+  const toggleBookmark = useMutation({
+    mutationFn: async () => {
+      if (!user) { toast.error("Sign in to bookmark"); return; }
+      if (isBookmarked) {
+        await supabase.from("bookmarks").delete().eq("user_id", user.id).eq("item_id", id).eq("item_type", "article");
+      } else {
+        await supabase.from("bookmarks").insert({ user_id: user.id, item_id: id, item_type: "article" });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bookmark-status", user?.id, id] });
+      queryClient.invalidateQueries({ queryKey: ["bookmarks"] });
+      toast.success(isBookmarked ? "Bookmark removed" : "Bookmarked!");
+    },
+  });
+
   return (
     <Link to={`/issue/${id}`}>
       <motion.div
@@ -47,23 +87,35 @@ export function IssueCard({ id, title, synopsis, gsTags, sourceCount, confidence
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <SourceBadge count={sourceCount} />
-            <ConfidenceBadge confidence={confidence} />
+            {confidence != null && <ConfidenceBadge confidence={confidence} />}
           </div>
           <div className="flex items-center gap-0">
-            <button
-              className="h-9 w-9 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 active:scale-90 transition-all"
-              onClick={(e) => { e.preventDefault(); }}
-              aria-label="Bookmark"
-            >
-              <Bookmark className="h-4 w-4" />
-            </button>
-            <button
-              className="h-9 w-9 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 active:scale-90 transition-all"
-              onClick={(e) => { e.preventDefault(); }}
-              aria-label="Revise later"
-            >
-              <RotateCcw className="h-4 w-4" />
-            </button>
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    className={`h-9 w-9 flex items-center justify-center rounded-full active:scale-90 transition-all ${isBookmarked ? "text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleBookmark.mutate(); }}
+                    aria-label={isBookmarked ? "Remove bookmark" : "Save to bookmarks"}
+                  >
+                    {isBookmarked ? <BookmarkCheck className="h-4 w-4" /> : <Bookmark className="h-4 w-4" />}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>{isBookmarked ? "Remove bookmark" : "Save to bookmarks"}</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    className="h-9 w-9 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 active:scale-90 transition-all"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); toast.info("Added to revision queue"); }}
+                    aria-label="Add to revision queue"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>Add to revision queue</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-accent transition-colors ml-0.5" />
           </div>
         </div>

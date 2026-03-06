@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Newspaper, Compass, RotateCcw, Target, User } from "lucide-react";
+import { Newspaper, Compass, RotateCcw, Target, Bookmark } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
@@ -7,7 +7,7 @@ const NAV_ITEMS = [
   { label: "Explore", path: "/syllabus", icon: Compass },
   { label: "Practice", path: "/practice", icon: Target },
   { label: "Revise", path: "/revision", icon: RotateCcw },
-  { label: "Profile", path: "/settings", icon: User },
+  { label: "Saved", path: "/saved", icon: Bookmark },
 ];
 
 export function MobileNav() {
