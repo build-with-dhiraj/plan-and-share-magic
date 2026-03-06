@@ -34,7 +34,7 @@ export function DesktopNav() {
                 to={item.path}
                 className={cn(
                   "px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                  location.pathname === item.path
+                (item.path === "/" ? location.pathname === "/" : location.pathname.startsWith(item.path))
                     ? "bg-primary/10 text-primary"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 )}
