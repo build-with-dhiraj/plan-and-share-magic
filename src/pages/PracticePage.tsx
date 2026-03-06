@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -9,6 +9,7 @@ import { sampleMCQs, type MCQ } from "@/data/sampleMCQs";
 import { QuizQuestion } from "@/components/practice/QuizQuestion";
 import { QuizResults } from "@/components/practice/QuizResults";
 import { cn } from "@/lib/utils";
+import { useQuizPersist } from "@/hooks/useQuizPersist";
 
 type QuizState = "menu" | "active" | "results";
 
