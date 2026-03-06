@@ -643,6 +643,9 @@ Deno.serve(async (req) => {
                 }
               }
 
+              // Final junk check after scraping
+              if (isJunkContent(fullContent)) { totalSkipped++; continue; }
+
               const { error } = await supabase.from("articles").insert({
                 source_name: source.name,
                 source_url: link,
