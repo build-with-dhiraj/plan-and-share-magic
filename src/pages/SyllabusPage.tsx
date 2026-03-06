@@ -17,12 +17,12 @@ const GS_TOPICS = [
 
 const SyllabusPage = () => {
   return (
-    <div className="container max-w-4xl py-6 px-4">
-      <h1 className="text-2xl font-bold text-foreground tracking-tight mb-1">Explore by Syllabus</h1>
-      <p className="text-sm text-muted-foreground mb-6">Browse current affairs mapped to UPSC GS papers</p>
+    <div className="container max-w-4xl py-4 sm:py-6 px-4">
+      <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight mb-1">Explore by Syllabus</h1>
+      <p className="text-xs sm:text-sm text-muted-foreground mb-5">Browse current affairs mapped to UPSC GS papers</p>
 
       <motion.div
-        className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+        className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ staggerChildren: 0.05 }}
@@ -30,7 +30,7 @@ const SyllabusPage = () => {
         {GS_TOPICS.map((topic) => (
           <motion.div
             key={topic.slug}
-            className="glass-card rounded-xl p-5 cursor-pointer hover:shadow-md transition-shadow"
+            className="glass-card rounded-xl p-4 sm:p-5 cursor-pointer hover:shadow-md transition-shadow active:scale-[0.97]"
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.98 }}
           >
@@ -38,7 +38,7 @@ const SyllabusPage = () => {
               <SyllabusTagChip tag={topic.slug as any} />
               <span className="text-xs text-muted-foreground">{topic.issueCount} issues</span>
             </div>
-            <h3 className="font-semibold text-foreground text-sm mb-2">{topic.name}</h3>
+            <h3 className="font-semibold text-foreground text-xs sm:text-sm mb-2">{topic.name}</h3>
             <div className="space-y-1">
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>Coverage</span>

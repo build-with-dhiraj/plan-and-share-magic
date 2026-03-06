@@ -7,36 +7,36 @@ const IssuePage = () => {
   const { id } = useParams();
 
   return (
-    <div className="container max-w-4xl py-6 px-4">
+    <div className="container max-w-4xl py-4 sm:py-6 px-4">
       {/* Reading progress bar */}
-      <div className="fixed top-16 left-0 right-0 h-1 bg-muted z-40 hidden md:block">
+      <div className="fixed top-0 lg:top-16 left-0 right-0 h-1 bg-muted z-40">
         <div className="h-full bg-accent w-1/3 transition-all" />
       </div>
 
-      <div className="mb-6">
-        <div className="flex items-center gap-2 mb-3">
+      <div className="mb-5">
+        <div className="flex items-center gap-1.5 mb-2.5">
           <Badge className="gs-tag-economy border text-xs">Economy</Badge>
           <Badge className="gs-tag-environment border text-xs">Environment</Badge>
         </div>
-        <h1 className="text-2xl md:text-3xl font-bold text-foreground leading-tight mb-3">
+        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground leading-tight mb-2.5">
           RBI Introduces New Framework for Climate Risk Assessment in Banking
         </h1>
-        <p className="text-muted-foreground text-sm flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground text-xs sm:text-sm">
           <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> Updated 2h ago</span>
           <span>4 sources</span>
           <span>Confidence: 85%</span>
-        </p>
+        </div>
       </div>
 
       <Tabs defaultValue="prelims" className="w-full">
-        <TabsList className="w-full grid grid-cols-3 mb-6">
-          <TabsTrigger value="prelims" className="flex items-center gap-1.5 text-xs">
+        <TabsList className="w-full grid grid-cols-3 mb-5 h-11">
+          <TabsTrigger value="prelims" className="flex items-center gap-1.5 text-xs sm:text-sm h-9">
             <BookOpen className="h-3.5 w-3.5" /> Prelims
           </TabsTrigger>
-          <TabsTrigger value="mains" className="flex items-center gap-1.5 text-xs">
+          <TabsTrigger value="mains" className="flex items-center gap-1.5 text-xs sm:text-sm h-9">
             <Brain className="h-3.5 w-3.5" /> Mains
           </TabsTrigger>
-          <TabsTrigger value="essay" className="flex items-center gap-1.5 text-xs">
+          <TabsTrigger value="essay" className="flex items-center gap-1.5 text-xs sm:text-sm h-9">
             <PenTool className="h-3.5 w-3.5" /> Essay
           </TabsTrigger>
         </TabsList>
