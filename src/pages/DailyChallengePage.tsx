@@ -11,6 +11,7 @@ import { sampleMCQs, type MCQ } from "@/data/sampleMCQs";
 import { QuizQuestion } from "@/components/practice/QuizQuestion";
 import { cn } from "@/lib/utils";
 import { useQuizPersist } from "@/hooks/useQuizPersist";
+import { fetchMCQs } from "@/hooks/useMCQBank";
 
 type ChallengeState = "lobby" | "active" | "complete";
 
@@ -44,9 +45,12 @@ function seededShuffle<T>(arr: T[], seed: number): T[] {
   return a;
 }
 
-function getDailyQuestions(): MCQ[] {
+async function getDailyQuestions(): Promise<MCQ[]> {
   const seed = getDailySeed();
-  return seededShuffle(sampleMCQs, seed).slice(0, DAILY_Q_COUNT);
+  // Try DB first, fallback to sample
+  const dbMCQs = await fetchMCQs({ dailyEligible: true, limit: 50 });
+  const pool = dbMCQs.length >= DAILY_Q_COUNT ? dbMCQs : sampleMCQs;
+  return seededShuffle(pool, seed).slice(0, DAILY_Q_COUNT);
 }
 
 function getTodayKey() {
@@ -77,7 +81,11 @@ const DailyChallengePage = () => {
   const [totalXP, setTotalXP] = useState(0);
   const [completedToday, setCompletedToday] = useState(false);
 
-  const questions = useMemo(() => getDailyQuestions(), []);
+  const [questions, setQuestions] = useState<MCQ[]>([]);
+
+  useEffect(() => {
+    getDailyQuestions().then(setQuestions);
+  }, []);
 
   useEffect(() => {
     const saved = localStorage.getItem(getTodayKey());

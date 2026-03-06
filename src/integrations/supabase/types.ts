@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      articles: {
+        Row: {
+          content: string | null
+          id: string
+          ingested_at: string | null
+          layer: string | null
+          processed: boolean | null
+          published_at: string | null
+          source_name: string
+          source_url: string
+          summary: string | null
+          syllabus_tags: string[] | null
+          title: string
+        }
+        Insert: {
+          content?: string | null
+          id?: string
+          ingested_at?: string | null
+          layer?: string | null
+          processed?: boolean | null
+          published_at?: string | null
+          source_name: string
+          source_url: string
+          summary?: string | null
+          syllabus_tags?: string[] | null
+          title: string
+        }
+        Update: {
+          content?: string | null
+          id?: string
+          ingested_at?: string | null
+          layer?: string | null
+          processed?: boolean | null
+          published_at?: string | null
+          source_name?: string
+          source_url?: string
+          summary?: string | null
+          syllabus_tags?: string[] | null
+          title?: string
+        }
+        Relationships: []
+      }
       bookmarks: {
         Row: {
           created_at: string
@@ -75,6 +117,125 @@ export type Database = {
             columns: ["attempt_id"]
             isOneToOne: false
             referencedRelation: "quiz_attempts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      facts: {
+        Row: {
+          article_id: string | null
+          confidence: number | null
+          created_at: string | null
+          fact_text: string
+          id: string
+          source_url: string
+          syllabus_tags: string[] | null
+          verified: boolean | null
+        }
+        Insert: {
+          article_id?: string | null
+          confidence?: number | null
+          created_at?: string | null
+          fact_text: string
+          id?: string
+          source_url: string
+          syllabus_tags?: string[] | null
+          verified?: boolean | null
+        }
+        Update: {
+          article_id?: string | null
+          confidence?: number | null
+          created_at?: string | null
+          fact_text?: string
+          id?: string
+          source_url?: string
+          syllabus_tags?: string[] | null
+          verified?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "facts_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mcq_bank: {
+        Row: {
+          article_id: string | null
+          correct_index: number
+          created_at: string | null
+          difficulty: string | null
+          explanation: string
+          fact_id: string | null
+          id: string
+          is_daily_eligible: boolean | null
+          is_verified: boolean | null
+          options: string[]
+          question: string
+          source: string | null
+          source_url: string | null
+          statements: string[] | null
+          syllabus_tags: string[] | null
+          time_limit: number | null
+          topic: string
+          year: string | null
+        }
+        Insert: {
+          article_id?: string | null
+          correct_index: number
+          created_at?: string | null
+          difficulty?: string | null
+          explanation: string
+          fact_id?: string | null
+          id?: string
+          is_daily_eligible?: boolean | null
+          is_verified?: boolean | null
+          options: string[]
+          question: string
+          source?: string | null
+          source_url?: string | null
+          statements?: string[] | null
+          syllabus_tags?: string[] | null
+          time_limit?: number | null
+          topic: string
+          year?: string | null
+        }
+        Update: {
+          article_id?: string | null
+          correct_index?: number
+          created_at?: string | null
+          difficulty?: string | null
+          explanation?: string
+          fact_id?: string | null
+          id?: string
+          is_daily_eligible?: boolean | null
+          is_verified?: boolean | null
+          options?: string[]
+          question?: string
+          source?: string | null
+          source_url?: string | null
+          statements?: string[] | null
+          syllabus_tags?: string[] | null
+          time_limit?: number | null
+          topic?: string
+          year?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mcq_bank_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mcq_bank_fact_id_fkey"
+            columns: ["fact_id"]
+            isOneToOne: false
+            referencedRelation: "facts"
             referencedColumns: ["id"]
           },
         ]
