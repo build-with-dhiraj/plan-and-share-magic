@@ -24,6 +24,41 @@ interface IssueCardProps {
 }
 
 export function IssueCard({ id, title, synopsis, gsTags, sourceCount, confidence, staticAnchor, isHero }: IssueCardProps) {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  const { data: isBookmarked = false } = useQuery({
+    queryKey: ["bookmark-status", user?.id, id],
+    queryFn: async () => {
+      if (!user) return false;
+      const { data } = await supabase
+        .from("bookmarks")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("item_id", id)
+        .eq("item_type", "article")
+        .maybeSingle();
+      return !!data;
+    },
+    enabled: !!user,
+  });
+
+  const toggleBookmark = useMutation({
+    mutationFn: async () => {
+      if (!user) { toast.error("Sign in to bookmark"); return; }
+      if (isBookmarked) {
+        await supabase.from("bookmarks").delete().eq("user_id", user.id).eq("item_id", id).eq("item_type", "article");
+      } else {
+        await supabase.from("bookmarks").insert({ user_id: user.id, item_id: id, item_type: "article" });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bookmark-status", user?.id, id] });
+      queryClient.invalidateQueries({ queryKey: ["bookmarks"] });
+      toast.success(isBookmarked ? "Bookmark removed" : "Bookmarked!");
+    },
+  });
+
   return (
     <Link to={`/issue/${id}`}>
       <motion.div
