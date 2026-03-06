@@ -165,7 +165,9 @@ const MentorPage = () => {
             </AnimatePresence>
             {isLoading && messages[messages.length - 1]?.role === "user" && (
               <div className="flex gap-2.5">
-                <img src={mentorAvatar} alt="AI Mentor" className="h-7 w-7 rounded-full object-cover object-[center_10%] scale-[2] shrink-0" />
+                 <div className="h-7 w-7 rounded-full overflow-hidden shrink-0">
+                   <img src={mentorAvatar} alt="AI Mentor" className="h-full w-full object-cover object-[center_10%] scale-[2]" />
+                 </div>
                 <div className="bg-muted/60 rounded-2xl rounded-tl-sm">
                   <TypingDots />
                 </div>
