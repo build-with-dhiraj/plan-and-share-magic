@@ -12,6 +12,8 @@ import { QuizQuestion } from "@/components/practice/QuizQuestion";
 import { cn } from "@/lib/utils";
 import { useQuizPersist } from "@/hooks/useQuizPersist";
 import { fetchMCQs } from "@/hooks/useMCQBank";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 type ChallengeState = "lobby" | "active" | "complete";
 

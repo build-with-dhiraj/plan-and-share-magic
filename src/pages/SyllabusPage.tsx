@@ -49,7 +49,7 @@ const SyllabusPage = () => {
   const maxCount = Math.max(...topics.map((t) => t.issueCount), 1);
 
   return (
-    <div className="container max-w-4xl py-4 sm:py-6 px-4">
+    <div className="container max-w-4xl py-4 sm:py-6 px-4 pb-24 lg:pb-6">
       <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight mb-1">Explore by Syllabus</h1>
       <p className="text-xs sm:text-sm text-muted-foreground mb-5">Browse current affairs mapped to UPSC GS papers</p>
 

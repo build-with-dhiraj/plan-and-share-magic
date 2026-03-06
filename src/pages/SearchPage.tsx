@@ -172,7 +172,7 @@ const SearchPage = () => {
   const clearFilters = () => { setSelectedGS([]); setSelectedLayers([]); };
 
   return (
-    <div className="container max-w-4xl py-4 sm:py-6 px-4">
+    <div className="container max-w-4xl py-4 sm:py-6 px-4 pb-24 lg:pb-6">
       {/* Search bar */}
       <div className="relative mb-4">
         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-muted-foreground" />

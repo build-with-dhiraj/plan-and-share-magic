@@ -90,20 +90,32 @@ export function IssueCard({ id, title, synopsis, gsTags, sourceCount, confidence
             {confidence != null && <ConfidenceBadge confidence={confidence} />}
           </div>
           <div className="flex items-center gap-0">
-            <button
-              className="h-9 w-9 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 active:scale-90 transition-all"
-              onClick={(e) => { e.preventDefault(); }}
-              aria-label="Bookmark"
-            >
-              <Bookmark className="h-4 w-4" />
-            </button>
-            <button
-              className="h-9 w-9 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 active:scale-90 transition-all"
-              onClick={(e) => { e.preventDefault(); }}
-              aria-label="Revise later"
-            >
-              <RotateCcw className="h-4 w-4" />
-            </button>
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    className={`h-9 w-9 flex items-center justify-center rounded-full active:scale-90 transition-all ${isBookmarked ? "text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleBookmark.mutate(); }}
+                    aria-label={isBookmarked ? "Remove bookmark" : "Save to bookmarks"}
+                  >
+                    {isBookmarked ? <BookmarkCheck className="h-4 w-4" /> : <Bookmark className="h-4 w-4" />}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>{isBookmarked ? "Remove bookmark" : "Save to bookmarks"}</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    className="h-9 w-9 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 active:scale-90 transition-all"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); toast.info("Added to revision queue"); }}
+                    aria-label="Add to revision queue"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>Add to revision queue</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-accent transition-colors ml-0.5" />
           </div>
         </div>

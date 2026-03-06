@@ -90,7 +90,10 @@ const IssuePage = () => {
     : "";
 
   return (
-    <div className="container max-w-4xl py-4 sm:py-6 px-4">
+    <div className="container max-w-4xl py-4 sm:py-6 px-4 pb-24 lg:pb-6">
+      <Button variant="ghost" size="icon" className="h-8 w-8 mb-3" onClick={() => navigate(-1)}>
+        <ArrowLeft className="h-4 w-4" />
+      </Button>
       <div className="mb-5">
         <div className="flex items-center gap-1.5 mb-2.5 flex-wrap">
           {tags.map((tag: string) => (
