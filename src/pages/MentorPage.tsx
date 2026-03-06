@@ -47,7 +47,9 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
             <User className="h-3.5 w-3.5 text-primary" />
           </div>
         ) : (
-          <img src={mentorAvatar} alt="AI Mentor" className="h-7 w-7 rounded-full object-cover" />
+          <div className="h-7 w-7 rounded-full overflow-hidden">
+            <img src={mentorAvatar} alt="AI Mentor" className="h-full w-full object-cover object-[center_10%] scale-[2]" />
+          </div>
         )}
       </div>
       <div
@@ -102,7 +104,9 @@ const MentorPage = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <img src={mentorAvatar} alt="AI Mentor" className="h-9 w-9 rounded-full object-cover ring-2 ring-accent/20" />
+          <div className="h-9 w-9 rounded-full overflow-hidden ring-2 ring-accent/20">
+            <img src={mentorAvatar} alt="AI Mentor" className="h-full w-full object-cover object-[center_10%] scale-[2]" />
+          </div>
           <div>
             <h1 className="text-lg font-bold text-foreground">
               AI Study Mentor
@@ -129,7 +133,9 @@ const MentorPage = () => {
       {isEmpty ? (
           <div className="flex flex-col h-full">
             <div className="flex-1 flex flex-col items-center justify-center text-center px-4">
-              <img src={mentorAvatar} alt="AI Mentor" className="h-16 w-16 rounded-full object-cover mb-4 opacity-70 ring-2 ring-accent/10" />
+              <div className="h-16 w-16 rounded-full overflow-hidden mb-4 opacity-70 ring-2 ring-accent/10">
+                <img src={mentorAvatar} alt="AI Mentor" className="h-full w-full object-cover object-[center_10%] scale-[2]" />
+              </div>
               <p className="text-sm text-muted-foreground">
                 Ask anything about current affairs, get UPSC-focused answers with
                 citations from your database
@@ -159,7 +165,9 @@ const MentorPage = () => {
             </AnimatePresence>
             {isLoading && messages[messages.length - 1]?.role === "user" && (
               <div className="flex gap-2.5">
-                <img src={mentorAvatar} alt="AI Mentor" className="h-7 w-7 rounded-full object-cover shrink-0" />
+                 <div className="h-7 w-7 rounded-full overflow-hidden shrink-0">
+                   <img src={mentorAvatar} alt="AI Mentor" className="h-full w-full object-cover object-[center_10%] scale-[2]" />
+                 </div>
                 <div className="bg-muted/60 rounded-2xl rounded-tl-sm">
                   <TypingDots />
                 </div>
