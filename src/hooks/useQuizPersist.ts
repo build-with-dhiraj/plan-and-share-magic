@@ -68,8 +68,15 @@ export function useQuizPersist() {
     // 3. Update streaks
     await updateStreaks(user.id, result.totalXP);
 
+    // 4. Add wrong answers to spaced repetition queue
+    for (const a of result.answers) {
+      if (!a.isCorrect) {
+        await addToQueue(a.questionId);
+      }
+    }
+
     return attempt.id;
-  }, [user]);
+  }, [user, addToQueue]);
 
   const saveDailyCompletion = useCallback(async (
     attemptId: string | null,
