@@ -63,15 +63,15 @@ const item = {
 
 const Index = () => {
   return (
-    <div className="container max-w-3xl py-6 px-4">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground tracking-tight">Today's Brief</h1>
-        <p className="text-sm text-muted-foreground mt-1">
+    <div className="container max-w-3xl py-4 sm:py-6 px-4">
+      <div className="mb-4 sm:mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">Today's Brief</h1>
+        <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
           {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
         </p>
       </div>
 
-      <motion.div className="space-y-4" variants={container} initial="hidden" animate="show">
+      <motion.div className="space-y-3 sm:space-y-4" variants={container} initial="hidden" animate="show">
         {SAMPLE_ISSUES.map((issue) => (
           <motion.div key={issue.id} variants={item}>
             <IssueCard {...issue} />
