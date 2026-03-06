@@ -24,7 +24,7 @@ export function MentorFAB() {
           "border border-white/60 dark:border-white/10"
         )}
       >
-        <img src={mentorAvatar} alt="AI Mentor" className="h-[3.25rem] w-[3.25rem] rounded-xl object-cover object-[center_15%] scale-150" />
+        <img src={mentorAvatar} alt="AI Mentor" className="h-[3.25rem] w-[3.25rem] rounded-xl object-cover object-[center_10%] scale-[2]" />
       </motion.div>
     </Link>
   );
