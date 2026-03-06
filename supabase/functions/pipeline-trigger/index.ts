@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
         Authorization: `Bearer ${serviceKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ batch_size: 5 }),
+      body: JSON.stringify({ batch_size: 20 }),
     });
     const processResult = await processResp.json();
     console.log("Pipeline: Processing complete", JSON.stringify(processResult));
