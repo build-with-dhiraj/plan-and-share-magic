@@ -44,9 +44,20 @@ const PracticePage = () => {
   const [timedMode, setTimedMode] = useState(false);
   const [streak, setStreak] = useState(0);
   const [totalXP, setTotalXP] = useState(0);
+  const [topicCounts, setTopicCounts] = useState<Record<string, number>>({});
 
-  const startQuiz = useCallback((topic: string | null) => {
-    const pool = topic ? sampleMCQs.filter((q) => q.topic === topic) : sampleMCQs;
+  // Load topic counts from DB + fallback
+  useEffect(() => {
+    fetchTopicCounts().then(setTopicCounts);
+  }, []);
+
+  const topics = useMemo(() =>
+    topicDefs.map((t) => ({ ...t, count: topicCounts[t.name] || 0 })),
+    [topicCounts]
+  );
+
+  const startQuiz = useCallback(async (topic: string | null) => {
+    const pool = await fetchMCQs({ topic, limit: 50 });
     const shuffled = shuffleArray(pool).slice(0, Math.min(10, pool.length));
     setSelectedTopic(topic);
     setQuestions(shuffled);
