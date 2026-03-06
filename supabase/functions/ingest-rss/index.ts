@@ -528,10 +528,12 @@ Deno.serve(async (req) => {
     // Parse optional params
     let layerFilter: string[] | null = null;
     let scrapeFullText = true;
+    let typeFilter: string | null = null;
     try {
       const body = await req.json();
       if (body?.layers) layerFilter = body.layers;
       if (body?.scrape_full_text === false) scrapeFullText = false;
+      if (body?.type) typeFilter = body.type; // "rss" or "scrape"
     } catch { /* no body is fine */ }
 
     let totalIngested = 0;
@@ -540,10 +542,12 @@ Deno.serve(async (req) => {
     const errors: string[] = [];
     const sourceStats: Record<string, { ingested: number; scraped: number }> = {};
 
-    // Filter sources by layer if requested
-    const sources = layerFilter
-      ? SOURCE_REGISTRY.filter((s) => layerFilter!.includes(s.layer))
-      : SOURCE_REGISTRY;
+    // Filter sources
+    let sources = SOURCE_REGISTRY;
+    if (layerFilter) sources = sources.filter((s) => layerFilter!.includes(s.layer));
+    if (typeFilter) sources = sources.filter((s) => s.type === typeFilter);
+
+    console.log(`Processing ${sources.length} sources (filter: layers=${layerFilter}, type=${typeFilter})`);
 
     for (const source of sources) {
       sourceStats[source.name] = { ingested: 0, scraped: 0 };
