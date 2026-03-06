@@ -29,14 +29,14 @@ const IssuePage = () => {
       </div>
 
       <Tabs defaultValue="prelims" className="w-full">
-        <TabsList className="w-full grid grid-cols-3 mb-6">
-          <TabsTrigger value="prelims" className="flex items-center gap-1.5 text-xs">
+        <TabsList className="w-full grid grid-cols-3 mb-5 h-11">
+          <TabsTrigger value="prelims" className="flex items-center gap-1.5 text-xs sm:text-sm h-9">
             <BookOpen className="h-3.5 w-3.5" /> Prelims
           </TabsTrigger>
-          <TabsTrigger value="mains" className="flex items-center gap-1.5 text-xs">
+          <TabsTrigger value="mains" className="flex items-center gap-1.5 text-xs sm:text-sm h-9">
             <Brain className="h-3.5 w-3.5" /> Mains
           </TabsTrigger>
-          <TabsTrigger value="essay" className="flex items-center gap-1.5 text-xs">
+          <TabsTrigger value="essay" className="flex items-center gap-1.5 text-xs sm:text-sm h-9">
             <PenTool className="h-3.5 w-3.5" /> Essay
           </TabsTrigger>
         </TabsList>
