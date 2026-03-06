@@ -1,8 +1,9 @@
 import { Link, useLocation } from "react-router-dom";
-import { Search, User, Flame, Bot } from "lucide-react";
+import { Search, User, Flame, Bookmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 const NAV_ITEMS = [
   { label: "Today", path: "/" },
