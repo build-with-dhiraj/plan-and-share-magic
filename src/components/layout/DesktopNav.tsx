@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Search, User, Flame } from "lucide-react";
+import { Search, User, Flame, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { label: "Revise", path: "/revision" },
   { label: "Practice", path: "/practice" },
   { label: "Daily", path: "/daily" },
+  { label: "Mentor", path: "/mentor" },
 ];
 
 export function DesktopNav() {
