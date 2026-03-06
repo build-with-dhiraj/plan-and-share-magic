@@ -49,7 +49,7 @@ const RevisionPage = () => {
   };
 
   return (
-    <div className="container max-w-2xl py-6 px-4 pb-24 lg:pb-6">
+    <div className="container max-w-2xl py-4 sm:py-6 px-4 pb-24 lg:pb-6">
       <AnimatePresence mode="wait">
         {pageState === "queue" && (
           <motion.div
