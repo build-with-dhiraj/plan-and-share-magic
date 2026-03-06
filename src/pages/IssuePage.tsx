@@ -29,7 +29,7 @@ const IssuePage = () => {
         .from("articles")
         .select("*")
         .eq("id", id!)
-        .single();
+        .maybeSingle();
       return data;
     },
     enabled: !!id,

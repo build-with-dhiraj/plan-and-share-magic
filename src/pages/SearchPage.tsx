@@ -90,7 +90,7 @@ const SearchPage = () => {
   const { data: articles = [], isLoading: loadingArticles } = useQuery({
     queryKey: ["search-articles", debouncedQuery, selectedLayers],
     queryFn: async () => {
-      let q = supabase.from("articles").select("id, title, summary, source_name, syllabus_tags, layer, published_at").order("published_at", { ascending: false }).limit(50);
+      let q = supabase.from("articles").select("id, title, summary, source_name, syllabus_tags, layer, published_at").eq("processed", true).not("summary", "is", null).order("published_at", { ascending: false }).limit(50);
       if (debouncedQuery) q = q.or(`title.ilike.%${debouncedQuery}%,summary.ilike.%${debouncedQuery}%`);
       if (selectedLayers.length) q = q.in("layer", selectedLayers);
       const { data } = await q;
