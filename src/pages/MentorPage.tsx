@@ -48,7 +48,7 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
           </div>
         ) : (
           <div className="h-7 w-7 rounded-full overflow-hidden">
-            <img src={mentorAvatar} alt="AI Mentor" className="h-full w-full object-cover object-[center_10%] scale-[2]" />
+            <img src={mentorAvatar} alt="AI Mentor" className="h-full w-full object-cover object-[center_5%] scale-[2.8]" />
           </div>
         )}
       </div>
