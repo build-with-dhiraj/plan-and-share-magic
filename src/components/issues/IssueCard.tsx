@@ -47,7 +47,7 @@ export function IssueCard({ id, title, synopsis, gsTags, sourceCount, confidence
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <SourceBadge count={sourceCount} />
-            <ConfidenceBadge confidence={confidence} />
+            {confidence != null && <ConfidenceBadge confidence={confidence} />}
           </div>
           <div className="flex items-center gap-0">
             <button
