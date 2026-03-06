@@ -23,7 +23,7 @@ const DashboardPage = () => {
   ];
 
   return (
-    <div className="container max-w-4xl py-6 px-4 pb-24 lg:pb-6">
+    <div className="container max-w-4xl py-4 sm:py-6 px-4 pb-24 lg:pb-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-foreground tracking-tight">Dashboard</h1>
         <XPStreakWidget />
