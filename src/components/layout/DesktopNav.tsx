@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { label: "Explore", path: "/syllabus" },
   { label: "Revise", path: "/revision" },
   { label: "Practice", path: "/practice" },
+  { label: "Daily", path: "/daily" },
 ];
 
 export function DesktopNav() {

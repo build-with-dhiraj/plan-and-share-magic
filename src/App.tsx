@@ -10,6 +10,7 @@ import IssuePage from "./pages/IssuePage";
 import SyllabusPage from "./pages/SyllabusPage";
 import RevisionPage from "./pages/RevisionPage";
 import PracticePage from "./pages/PracticePage";
+import DailyChallengePage from "./pages/DailyChallengePage";
 import SavedPage from "./pages/SavedPage";
 import SearchPage from "./pages/SearchPage";
 import MentorPage from "./pages/MentorPage";
@@ -36,6 +37,7 @@ const App = () => (
             <Route path="/syllabus" element={<SyllabusPage />} />
             <Route path="/revision" element={<RevisionPage />} />
             <Route path="/practice" element={<PracticePage />} />
+            <Route path="/daily" element={<DailyChallengePage />} />
             <Route path="/saved" element={<SavedPage />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/mentor" element={<MentorPage />} />

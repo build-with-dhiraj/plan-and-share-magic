@@ -2,7 +2,8 @@ import { useState, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Target, Shuffle, BookOpen, Flame, ArrowLeft, Timer, Zap } from "lucide-react";
+import { Target, Shuffle, BookOpen, Flame, ArrowLeft, Timer, Zap, Trophy } from "lucide-react";
+import { Link } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { sampleMCQs, type MCQ } from "@/data/sampleMCQs";
 import { QuizQuestion } from "@/components/practice/QuizQuestion";
@@ -97,6 +98,23 @@ const PracticePage = () => {
           >
             <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight mb-1">Practice</h1>
             <p className="text-sm text-muted-foreground mb-5">UPSC-format MCQ drills to sharpen recall</p>
+
+            {/* Daily Challenge Banner */}
+            <Link to="/daily" className="block mb-4">
+              <motion.div
+                whileTap={{ scale: 0.98 }}
+                className="glass-card rounded-xl p-4 flex items-center gap-3 border border-accent/20 bg-accent/5 hover:bg-accent/10 transition-colors"
+              >
+                <div className="h-10 w-10 rounded-xl bg-accent/15 flex items-center justify-center shrink-0">
+                  <Trophy className="h-5 w-5 text-accent" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground">Daily Challenge</p>
+                  <p className="text-[11px] text-muted-foreground">5 timed questions • Leaderboard • +25 bonus XP</p>
+                </div>
+                <Zap className="h-4 w-4 text-accent shrink-0" />
+              </motion.div>
+            </Link>
 
             {/* Timed Mode Toggle */}
             <motion.div
