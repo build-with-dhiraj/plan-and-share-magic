@@ -556,9 +556,13 @@ Deno.serve(async (req) => {
         // ──── RSS INGESTION ────
         for (const url of source.urls) {
           try {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 8000);
             const resp = await fetch(url, {
               headers: { "User-Agent": "UPSCPrepBot/2.0" },
+              signal: controller.signal,
             });
+            clearTimeout(timeout);
             if (!resp.ok) {
               errors.push(`${source.name}: HTTP ${resp.status} for ${url}`);
               continue;
