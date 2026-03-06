@@ -81,7 +81,11 @@ const DailyChallengePage = () => {
   const [totalXP, setTotalXP] = useState(0);
   const [completedToday, setCompletedToday] = useState(false);
 
-  const questions = useMemo(() => getDailyQuestions(), []);
+  const [questions, setQuestions] = useState<MCQ[]>([]);
+
+  useEffect(() => {
+    getDailyQuestions().then(setQuestions);
+  }, []);
 
   useEffect(() => {
     const saved = localStorage.getItem(getTodayKey());
