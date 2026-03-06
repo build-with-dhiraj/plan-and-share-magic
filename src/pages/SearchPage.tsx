@@ -381,8 +381,7 @@ const SearchPage = () => {
 // Simple debounce hook
 function useDebounce(value: string, delay: number) {
   const [debounced, setDebounced] = useState(value);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useMemo(() => {
+  useEffect(() => {
     const t = setTimeout(() => setDebounced(value), delay);
     return () => clearTimeout(t);
   }, [value, delay]);
