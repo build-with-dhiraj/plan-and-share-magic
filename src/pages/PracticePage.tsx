@@ -1,9 +1,8 @@
 import { useState, useMemo, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Target, Shuffle, BookOpen, Flame, ArrowLeft } from "lucide-react";
+import { Target, Shuffle, BookOpen, Flame, ArrowLeft, Timer, Zap } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { sampleMCQs, type MCQ } from "@/data/sampleMCQs";
 import { QuizQuestion } from "@/components/practice/QuizQuestion";
@@ -21,9 +20,9 @@ const topics = [
   { name: "Science", count: 0, cls: "gs-tag-science" },
   { name: "History", count: 0, cls: "gs-tag-history" },
   { name: "Ethics", count: 0, cls: "gs-tag-ethics" },
+  { name: "Society", count: 0, cls: "gs-tag-society" },
 ];
 
-// Count MCQs per topic
 topics.forEach((t) => {
   t.count = sampleMCQs.filter((q) => q.topic === t.name).length;
 });
@@ -42,7 +41,10 @@ const PracticePage = () => {
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   const [questions, setQuestions] = useState<MCQ[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<{ selected: number; correct: boolean }[]>([]);
+  const [answers, setAnswers] = useState<{ selected: number; correct: boolean; xp: number }[]>([]);
+  const [timedMode, setTimedMode] = useState(false);
+  const [streak, setStreak] = useState(0);
+  const [totalXP, setTotalXP] = useState(0);
 
   const startQuiz = useCallback((topic: string | null) => {
     const pool = topic ? sampleMCQs.filter((q) => q.topic === topic) : sampleMCQs;
@@ -51,11 +53,15 @@ const PracticePage = () => {
     setQuestions(shuffled);
     setCurrentIndex(0);
     setAnswers([]);
+    setStreak(0);
+    setTotalXP(0);
     setQuizState("active");
   }, []);
 
-  const handleAnswer = useCallback((selectedIndex: number, isCorrect: boolean) => {
-    setAnswers((prev) => [...prev, { selected: selectedIndex, correct: isCorrect }]);
+  const handleAnswer = useCallback((selectedIndex: number, isCorrect: boolean, xpEarned: number) => {
+    setAnswers((prev) => [...prev, { selected: selectedIndex, correct: isCorrect, xp: xpEarned }]);
+    setTotalXP((prev) => prev + xpEarned);
+    setStreak((prev) => isCorrect ? prev + 1 : 0);
   }, []);
 
   const handleNext = useCallback(() => {
@@ -92,22 +98,53 @@ const PracticePage = () => {
             <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight mb-1">Practice</h1>
             <p className="text-sm text-muted-foreground mb-5">UPSC-format MCQ drills to sharpen recall</p>
 
+            {/* Timed Mode Toggle */}
+            <motion.div
+              className="glass-card rounded-xl p-3.5 mb-4 flex items-center justify-between"
+              whileTap={{ scale: 0.99 }}
+            >
+              <div className="flex items-center gap-2.5">
+                <div className={cn(
+                  "h-8 w-8 rounded-lg flex items-center justify-center",
+                  timedMode ? "bg-accent/20" : "bg-muted"
+                )}>
+                  <Timer className={cn("h-4 w-4", timedMode ? "text-accent" : "text-muted-foreground")} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Timed Mode</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {timedMode ? "60s per question • -5 XP penalty for wrong" : "Untimed • No penalty"}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setTimedMode(!timedMode)}
+                className={cn(
+                  "relative h-7 w-12 rounded-full transition-colors duration-200",
+                  timedMode ? "bg-accent" : "bg-border"
+                )}
+              >
+                <motion.div
+                  className="absolute top-0.5 h-6 w-6 rounded-full bg-card shadow-sm"
+                  animate={{ left: timedMode ? 22 : 2 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                />
+              </button>
+            </motion.div>
+
             {/* Quick Drill CTA */}
-            <Card className="glass-card mb-5 overflow-hidden">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Target className="h-4 w-4 text-accent" /> Quick Drill
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  10 random MCQs across all topics — test your UPSC readiness
-                </p>
-                <Button onClick={() => startQuiz(null)} className="w-full h-11 gap-2 text-sm font-semibold">
-                  <Shuffle className="h-4 w-4" /> Start Random Drill
-                </Button>
-              </CardContent>
-            </Card>
+            <div className="glass-card rounded-xl mb-5 overflow-hidden p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Target className="h-4 w-4 text-accent" />
+                <span className="text-sm font-semibold text-foreground">Quick Drill</span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                10 random MCQs across all topics — test your UPSC readiness
+              </p>
+              <Button onClick={() => startQuiz(null)} className="w-full h-11 gap-2 text-sm font-semibold">
+                <Shuffle className="h-4 w-4" /> Start {timedMode ? "Timed" : "Random"} Drill
+              </Button>
+            </div>
 
             {/* Topic grid */}
             <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
@@ -166,8 +203,18 @@ const PracticePage = () => {
               </Button>
               <div className="flex-1 space-y-1">
                 <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>{selectedTopic || "Mixed"} Drill</span>
-                  <span>{correctCount}/{answers.length} correct</span>
+                  <span className="flex items-center gap-1.5">
+                    {selectedTopic || "Mixed"} Drill
+                    {timedMode && <Timer className="h-3 w-3 text-accent" />}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    {totalXP > 0 && (
+                      <span className="flex items-center gap-0.5 text-accent font-semibold">
+                        <Zap className="h-3 w-3" />{totalXP}
+                      </span>
+                    )}
+                    {correctCount}/{answers.length} correct
+                  </span>
                 </div>
                 <Progress value={((currentIndex + 1) / questions.length) * 100} className="h-1.5" />
               </div>
@@ -180,6 +227,9 @@ const PracticePage = () => {
               totalQuestions={questions.length}
               onAnswer={handleAnswer}
               onNext={handleNext}
+              timedMode={timedMode}
+              timeLimit={60}
+              currentStreak={streak}
             />
           </motion.div>
         )}
@@ -206,7 +256,9 @@ const PracticePage = () => {
             <QuizResults
               correct={correctCount}
               total={questions.length}
+              totalXP={totalXP}
               topicBreakdown={topicBreakdown}
+              timedMode={timedMode}
               onRetry={() => startQuiz(selectedTopic)}
               onNewQuiz={() => setQuizState("menu")}
             />

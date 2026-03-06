@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Trophy, RotateCcw, ChevronRight, Target, TrendingUp, Flame } from "lucide-react";
+import { Trophy, RotateCcw, ChevronRight, Target, TrendingUp, Flame, Zap, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
@@ -7,17 +7,21 @@ import { cn } from "@/lib/utils";
 interface QuizResultsProps {
   correct: number;
   total: number;
+  totalXP?: number;
   topicBreakdown: Record<string, { correct: number; total: number }>;
+  timedMode?: boolean;
   onRetry: () => void;
   onNewQuiz: () => void;
 }
 
-export function QuizResults({ correct, total, topicBreakdown, onRetry, onNewQuiz }: QuizResultsProps) {
+export function QuizResults({ correct, total, totalXP, topicBreakdown, timedMode, onRetry, onNewQuiz }: QuizResultsProps) {
   const percentage = Math.round((correct / total) * 100);
   const grade = percentage >= 80 ? "Excellent" : percentage >= 60 ? "Good" : percentage >= 40 ? "Keep Practising" : "Needs Work";
-  const gradeColor = percentage >= 80 ? "text-gs-economy" : percentage >= 60 ? "text-accent" : percentage >= 40 ? "text-gs-ir" : "text-destructive";
+  const gradeColor = percentage >= 80 ? "text-[hsl(var(--gs-economy))]" : percentage >= 60 ? "text-accent" : percentage >= 40 ? "text-[hsl(var(--gs-ir))]" : "text-destructive";
   const gradeIcon = percentage >= 80 ? Trophy : percentage >= 60 ? TrendingUp : Target;
   const GradeIcon = gradeIcon;
+
+  const displayXP = totalXP ?? correct * 10;
 
   return (
     <motion.div
@@ -35,7 +39,14 @@ export function QuizResults({ correct, total, topicBreakdown, onRetry, onNewQuiz
           <GradeIcon className={cn("h-12 w-12 mx-auto", gradeColor)} />
         </motion.div>
         <div>
-          <p className={cn("text-2xl font-bold", gradeColor)}>{percentage}%</p>
+          <motion.p
+            className={cn("text-3xl font-bold", gradeColor)}
+            initial={{ scale: 0.5 }}
+            animate={{ scale: 1 }}
+            transition={{ type: "spring", delay: 0.3 }}
+          >
+            {percentage}%
+          </motion.p>
           <p className="text-sm text-muted-foreground">{grade}</p>
         </div>
         <div className="flex items-center justify-center gap-6 text-sm">
@@ -55,11 +66,23 @@ export function QuizResults({ correct, total, topicBreakdown, onRetry, onNewQuiz
           </div>
         </div>
 
-        {/* XP earned */}
-        <div className="flex items-center justify-center gap-1.5 pt-1">
-          <Flame className="h-4 w-4 text-accent" />
-          <span className="text-sm font-semibold text-accent">+{correct * 10} XP earned</span>
-        </div>
+        {/* XP earned with animation */}
+        <motion.div
+          className="flex items-center justify-center gap-2 pt-1"
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.5 }}
+        >
+          <Zap className="h-5 w-5 text-accent fill-accent" />
+          <span className="text-base font-bold text-accent">
+            {displayXP > 0 ? "+" : ""}{displayXP} XP earned
+          </span>
+          {timedMode && (
+            <span className="flex items-center gap-0.5 text-xs text-muted-foreground ml-1">
+              <Timer className="h-3 w-3" /> Timed
+            </span>
+          )}
+        </motion.div>
       </div>
 
       {/* Topic breakdown */}
@@ -70,13 +93,19 @@ export function QuizResults({ correct, total, topicBreakdown, onRetry, onNewQuiz
             {Object.entries(topicBreakdown).map(([topic, data]) => {
               const pct = Math.round((data.correct / data.total) * 100);
               return (
-                <div key={topic} className="space-y-1">
+                <motion.div
+                  key={topic}
+                  className="space-y-1"
+                  initial={{ x: -10, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ delay: 0.1 }}
+                >
                   <div className="flex justify-between text-xs">
                     <span className="text-foreground font-medium">{topic}</span>
                     <span className="text-muted-foreground">{data.correct}/{data.total}</span>
                   </div>
                   <Progress value={pct} className="h-2" />
-                </div>
+                </motion.div>
               );
             })}
           </div>
