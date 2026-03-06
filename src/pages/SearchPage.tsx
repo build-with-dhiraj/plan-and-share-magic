@@ -287,29 +287,31 @@ const SearchPage = () => {
 
         {/* Articles */}
         {(contentType === "all" || contentType === "articles") && filteredArticles.map((a) => (
-          <Card key={`article-${a.id}`} className="p-4 bg-card hover:bg-muted/50 transition-colors">
-            <div className="flex items-start gap-3">
-              <div className="mt-0.5 h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                <FileText className="h-4 w-4 text-primary" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <Badge variant="outline" className="text-[10px] px-1.5 py-0">Article</Badge>
-                  {a.layer && <span className="text-[10px] text-muted-foreground font-medium">Layer {a.layer}</span>}
-                  <span className="text-[10px] text-muted-foreground">{a.source_name}</span>
+          <Link key={`article-${a.id}`} to={`/issue/${a.id}`}>
+            <Card className="p-4 bg-card hover:bg-muted/50 transition-colors cursor-pointer">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <FileText className="h-4 w-4 text-primary" />
                 </div>
-                <h3 className="text-sm font-semibold text-foreground line-clamp-2 leading-snug">{a.title}</h3>
-                {a.summary && <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{a.summary}</p>}
-                {a.syllabus_tags?.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {a.syllabus_tags.slice(0, 4).map((tag: string) => (
-                      <Badge key={tag} className={`${tagColorClass(tag)} border text-[10px] px-1.5 py-0`}>{tag}</Badge>
-                    ))}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">Article</Badge>
+                    {a.layer && <span className="text-[10px] text-muted-foreground font-medium">Layer {a.layer}</span>}
+                    <span className="text-[10px] text-muted-foreground">{a.source_name}</span>
                   </div>
-                )}
+                  <h3 className="text-sm font-semibold text-foreground line-clamp-2 leading-snug">{a.title}</h3>
+                  {a.summary && <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{a.summary}</p>}
+                  {a.syllabus_tags?.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {a.syllabus_tags.slice(0, 4).map((tag: string) => (
+                        <Badge key={tag} className={`${tagColorClass(tag)} border text-[10px] px-1.5 py-0`}>{tag}</Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          </Card>
+            </Card>
+          </Link>
         ))}
 
         {/* Facts */}
