@@ -108,7 +108,7 @@ const MentorPage = () => {
               AI Study Mentor
             </h1>
             <p className="text-xs text-muted-foreground">
-              Powered by your content pipeline • GPT-4.1
+              AI-powered • Context from your content pipeline
             </p>
           </div>
         </div>
