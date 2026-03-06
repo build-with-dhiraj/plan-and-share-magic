@@ -1,10 +1,15 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, Palette, Target, Moon, Sun, Monitor } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { User, Palette, Target, Moon, Sun, Monitor, LogOut } from "lucide-react";
 import { useTheme } from "next-themes";
+import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 const SettingsPage = () => {
   const { theme, setTheme } = useTheme();
+  const { user, profile, signOut } = useAuth();
+  const navigate = useNavigate();
 
   const themeOptions = [
     { value: "light", label: "Light", icon: Sun },
@@ -12,8 +17,13 @@ const SettingsPage = () => {
     { value: "system", label: "System", icon: Monitor },
   ];
 
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/auth", { replace: true });
+  };
+
   return (
-    <div className="container max-w-3xl py-6 px-4">
+    <div className="container max-w-3xl py-6 px-4 pb-24 lg:pb-6">
       <h1 className="text-2xl font-bold text-foreground tracking-tight mb-6">Settings</h1>
 
       <div className="space-y-4">
@@ -23,8 +33,16 @@ const SettingsPage = () => {
               <User className="h-4 w-4 text-accent" /> Profile
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">Sign in to sync your progress across devices</p>
+          <CardContent className="space-y-2">
+            <div className="flex items-center gap-3">
+              {profile?.avatar_url && (
+                <img src={profile.avatar_url} alt="" className="h-10 w-10 rounded-full" />
+              )}
+              <div>
+                <p className="text-sm font-medium text-foreground">{profile?.display_name || "User"}</p>
+                <p className="text-xs text-muted-foreground">{user?.email}</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -34,8 +52,12 @@ const SettingsPage = () => {
               <Target className="h-4 w-4 text-accent" /> Exam Target
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">Set your target exam year and optional subjects</p>
+          <CardContent className="space-y-1">
+            <p className="text-sm text-foreground">{profile?.exam_target?.toUpperCase() || "Not set"}</p>
+            {profile?.optional_subjects && profile.optional_subjects.length > 0 && (
+              <p className="text-xs text-muted-foreground">Optionals: {profile.optional_subjects.join(", ")}</p>
+            )}
+            <p className="text-xs text-muted-foreground">{profile?.study_hours_per_day || 4}h/day target</p>
           </CardContent>
         </Card>
 
@@ -65,6 +87,14 @@ const SettingsPage = () => {
             </div>
           </CardContent>
         </Card>
+
+        <Button
+          variant="outline"
+          className="w-full h-11 gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+          onClick={handleSignOut}
+        >
+          <LogOut className="h-4 w-4" /> Sign Out
+        </Button>
       </div>
     </div>
   );
