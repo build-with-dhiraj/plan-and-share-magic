@@ -38,7 +38,7 @@ const SyllabusPage = () => {
               <SyllabusTagChip tag={topic.slug as any} />
               <span className="text-xs text-muted-foreground">{topic.issueCount} issues</span>
             </div>
-            <h3 className="font-semibold text-foreground text-sm mb-2">{topic.name}</h3>
+            <h3 className="font-semibold text-foreground text-xs sm:text-sm mb-2">{topic.name}</h3>
             <div className="space-y-1">
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>Coverage</span>
