@@ -71,7 +71,7 @@ const Index = () => {
           synopsis: a.summary || "",
           gsTags: gsTags.length > 0 ? gsTags : (["polity"] as GsTag[]),
           sourceCount: 1,
-          confidence: 0.85,
+          confidence: null,
           staticAnchor: undefined,
           isHero: false,
         };
