@@ -14,7 +14,7 @@ export function DesktopNav() {
   const location = useLocation();
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 hidden md:block border-b border-border bg-background/80 backdrop-blur-xl">
+    <header className="fixed top-0 left-0 right-0 z-50 hidden lg:block border-b border-border bg-background/80 backdrop-blur-xl">
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center gap-8">
           <Link to="/" className="flex items-center gap-2">

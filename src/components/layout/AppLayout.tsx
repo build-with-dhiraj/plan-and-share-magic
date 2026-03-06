@@ -11,7 +11,7 @@ export function AppLayout() {
   return (
     <div className="min-h-screen bg-background">
       {!hideNav && <DesktopNav />}
-      <main className={!hideNav ? "pb-20 md:pb-0 md:pt-16" : ""}>
+      <main className={!hideNav ? "pb-24 lg:pb-0 lg:pt-16" : ""}>
         <Outlet />
       </main>
       {!hideNav && <MobileNav />}
