@@ -98,6 +98,7 @@ const DailyChallengePage = () => {
   useEffect(() => {
     getDailyQuestions().then(setQuestions);
   }, []);
+  const [questions, setQuestions] = useState<MCQ[]>([]);
 
   useEffect(() => {
     const saved = localStorage.getItem(getTodayKey());
