@@ -1,1 +1,10 @@
 project_id = "zblmdfoddvqlaadqhlkq"
+
+[functions.ingest-rss]
+verify_jwt = false
+
+[functions.process-content]
+verify_jwt = false
+
+[functions.pipeline-trigger]
+verify_jwt = false
