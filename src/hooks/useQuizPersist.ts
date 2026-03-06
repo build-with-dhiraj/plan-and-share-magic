@@ -23,6 +23,7 @@ interface QuizResult {
 
 export function useQuizPersist() {
   const { user } = useAuth();
+  const { addToQueue } = useSpacedRepetition();
 
   const saveQuizResult = useCallback(async (result: QuizResult) => {
     if (!user) return null;
