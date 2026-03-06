@@ -48,7 +48,7 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
           </div>
         ) : (
           <div className="h-7 w-7 rounded-full overflow-hidden">
-            <img src={mentorAvatar} alt="AI Mentor" className="h-full w-full object-cover object-[center_10%] scale-[2]" />
+            <img src={mentorAvatar} alt="AI Mentor" className="h-full w-full object-cover object-[center_5%] scale-[2.8]" />
           </div>
         )}
       </div>
@@ -105,7 +105,7 @@ const MentorPage = () => {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="h-9 w-9 rounded-full overflow-hidden ring-2 ring-accent/20">
-            <img src={mentorAvatar} alt="AI Mentor" className="h-full w-full object-cover object-[center_10%] scale-[2]" />
+            <img src={mentorAvatar} alt="AI Mentor" className="h-full w-full object-cover object-[center_5%] scale-[2.8]" />
           </div>
           <div>
             <h1 className="text-lg font-bold text-foreground">
@@ -134,7 +134,7 @@ const MentorPage = () => {
           <div className="flex flex-col h-full">
             <div className="flex-1 flex flex-col items-center justify-center text-center px-4">
               <div className="h-16 w-16 rounded-full overflow-hidden mb-4 opacity-70 ring-2 ring-accent/10">
-                <img src={mentorAvatar} alt="AI Mentor" className="h-full w-full object-cover object-[center_10%] scale-[2]" />
+                <img src={mentorAvatar} alt="AI Mentor" className="h-full w-full object-cover object-[center_5%] scale-[2.8]" />
               </div>
               <p className="text-sm text-muted-foreground">
                 Ask anything about current affairs, get UPSC-focused answers with
@@ -166,7 +166,7 @@ const MentorPage = () => {
             {isLoading && messages[messages.length - 1]?.role === "user" && (
               <div className="flex gap-2.5">
                  <div className="h-7 w-7 rounded-full overflow-hidden shrink-0">
-                   <img src={mentorAvatar} alt="AI Mentor" className="h-full w-full object-cover object-[center_10%] scale-[2]" />
+                   <img src={mentorAvatar} alt="AI Mentor" className="h-full w-full object-cover object-[center_5%] scale-[2.8]" />
                  </div>
                 <div className="bg-muted/60 rounded-2xl rounded-tl-sm">
                   <TypingDots />
