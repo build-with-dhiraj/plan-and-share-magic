@@ -160,7 +160,8 @@ const DailyChallengePage = () => {
 
   // Build leaderboard with user inserted
   const leaderboard = useMemo(() => {
-    if (state !== "complete") return MOCK_LEADERBOARD;
+    const base = dbLeaderboard.length > 0 ? dbLeaderboard : FALLBACK_LEADERBOARD;
+    if (state !== "complete") return base;
     const userEntry: LeaderboardEntry = {
       rank: 0,
       name: "You",
@@ -170,9 +171,9 @@ const DailyChallengePage = () => {
       streak,
       isYou: true,
     };
-    const all = [...MOCK_LEADERBOARD, userEntry].sort((a, b) => b.xp - a.xp);
+    const all = [...base, userEntry].sort((a, b) => b.xp - a.xp);
     return all.map((e, i) => ({ ...e, rank: i + 1 }));
-  }, [state, correctCount, totalXP, streak]);
+  }, [state, correctCount, totalXP, streak, dbLeaderboard]);
 
   const todayDate = new Date().toLocaleDateString("en-IN", {
     weekday: "long",
