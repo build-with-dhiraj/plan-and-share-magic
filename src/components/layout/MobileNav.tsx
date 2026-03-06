@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
-import { Newspaper, Compass, RotateCcw, Bookmark, User } from "lucide-react";
+import { Newspaper, Compass, RotateCcw, Bookmark, User, Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTheme } from "next-themes";
 
 const NAV_ITEMS = [
   { label: "Today", path: "/", icon: Newspaper },

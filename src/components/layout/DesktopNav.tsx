@@ -2,6 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { Search, User, Flame } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const NAV_ITEMS = [
   { label: "Today", path: "/" },
@@ -51,6 +52,7 @@ export function DesktopNav() {
               <Flame className="h-4 w-4" />
             </Link>
           </Button>
+          <ThemeToggle />
           <Button variant="ghost" size="icon" asChild>
             <Link to="/settings">
               <User className="h-4 w-4" />
