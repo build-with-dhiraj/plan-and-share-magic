@@ -17,12 +17,12 @@ const GS_TOPICS = [
 
 const SyllabusPage = () => {
   return (
-    <div className="container max-w-4xl py-6 px-4">
-      <h1 className="text-2xl font-bold text-foreground tracking-tight mb-1">Explore by Syllabus</h1>
-      <p className="text-sm text-muted-foreground mb-6">Browse current affairs mapped to UPSC GS papers</p>
+    <div className="container max-w-4xl py-4 sm:py-6 px-4">
+      <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight mb-1">Explore by Syllabus</h1>
+      <p className="text-xs sm:text-sm text-muted-foreground mb-5">Browse current affairs mapped to UPSC GS papers</p>
 
       <motion.div
-        className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+        className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ staggerChildren: 0.05 }}
