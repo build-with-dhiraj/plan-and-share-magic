@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useSpacedRepetition } from "@/hooks/useSpacedRepetition";
 
 interface QuizResult {
   quizType: "practice" | "daily_challenge" | "topic_drill";
