@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -10,24 +10,21 @@ import { QuizQuestion } from "@/components/practice/QuizQuestion";
 import { QuizResults } from "@/components/practice/QuizResults";
 import { cn } from "@/lib/utils";
 import { useQuizPersist } from "@/hooks/useQuizPersist";
+import { fetchMCQs, fetchTopicCounts } from "@/hooks/useMCQBank";
 
 type QuizState = "menu" | "active" | "results";
 
-const topics = [
-  { name: "Polity", count: 0, cls: "gs-tag-polity" },
-  { name: "Economy", count: 0, cls: "gs-tag-economy" },
-  { name: "Environment", count: 0, cls: "gs-tag-environment" },
-  { name: "Geography", count: 0, cls: "gs-tag-geography" },
-  { name: "IR", count: 0, cls: "gs-tag-ir" },
-  { name: "Science", count: 0, cls: "gs-tag-science" },
-  { name: "History", count: 0, cls: "gs-tag-history" },
-  { name: "Ethics", count: 0, cls: "gs-tag-ethics" },
-  { name: "Society", count: 0, cls: "gs-tag-society" },
+const topicDefs = [
+  { name: "Polity", cls: "gs-tag-polity" },
+  { name: "Economy", cls: "gs-tag-economy" },
+  { name: "Environment", cls: "gs-tag-environment" },
+  { name: "Geography", cls: "gs-tag-geography" },
+  { name: "IR", cls: "gs-tag-ir" },
+  { name: "Science", cls: "gs-tag-science" },
+  { name: "History", cls: "gs-tag-history" },
+  { name: "Ethics", cls: "gs-tag-ethics" },
+  { name: "Society", cls: "gs-tag-society" },
 ];
-
-topics.forEach((t) => {
-  t.count = sampleMCQs.filter((q) => q.topic === t.name).length;
-});
 
 function shuffleArray<T>(arr: T[]): T[] {
   const a = [...arr];
