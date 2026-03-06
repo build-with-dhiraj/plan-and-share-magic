@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -9,6 +9,7 @@ import { sampleMCQs, type MCQ } from "@/data/sampleMCQs";
 import { QuizQuestion } from "@/components/practice/QuizQuestion";
 import { QuizResults } from "@/components/practice/QuizResults";
 import { cn } from "@/lib/utils";
+import { useQuizPersist } from "@/hooks/useQuizPersist";
 
 type QuizState = "menu" | "active" | "results";
 
@@ -59,6 +60,9 @@ const PracticePage = () => {
     setQuizState("active");
   }, []);
 
+  const { saveQuizResult } = useQuizPersist();
+  const answersRef = useRef<{ questionId: string; selected: number; correct: boolean; xp: number }[]>([]);
+
   const handleAnswer = useCallback((selectedIndex: number, isCorrect: boolean, xpEarned: number) => {
     setAnswers((prev) => [...prev, { selected: selectedIndex, correct: isCorrect, xp: xpEarned }]);
     setTotalXP((prev) => prev + xpEarned);
@@ -67,11 +71,28 @@ const PracticePage = () => {
 
   const handleNext = useCallback(() => {
     if (currentIndex + 1 >= questions.length) {
+      // Persist to Cloud
+      const finalAnswers = [...answers, answers[answers.length - 1]]; // answers already updated by handleAnswer
+      saveQuizResult({
+        quizType: selectedTopic ? "topic_drill" : "practice",
+        topic: selectedTopic,
+        totalQuestions: questions.length,
+        correctAnswers: answers.filter(a => a.correct).length,
+        totalXP,
+        bestStreak: streak,
+        timedMode,
+        answers: questions.map((q, i) => ({
+          questionId: q.id,
+          selectedIndex: answers[i]?.selected ?? -1,
+          isCorrect: answers[i]?.correct ?? false,
+          xpEarned: answers[i]?.xp ?? 0,
+        })),
+      });
       setQuizState("results");
     } else {
       setCurrentIndex((i) => i + 1);
     }
-  }, [currentIndex, questions.length]);
+  }, [currentIndex, questions.length, answers, questions, saveQuizResult, selectedTopic, totalXP, streak, timedMode]);
 
   const topicBreakdown = useMemo(() => {
     const breakdown: Record<string, { correct: number; total: number }> = {};

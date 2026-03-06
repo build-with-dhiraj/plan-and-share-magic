@@ -10,6 +10,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { sampleMCQs, type MCQ } from "@/data/sampleMCQs";
 import { QuizQuestion } from "@/components/practice/QuizQuestion";
 import { cn } from "@/lib/utils";
+import { useQuizPersist } from "@/hooks/useQuizPersist";
 
 type ChallengeState = "lobby" | "active" | "complete";
 
@@ -92,6 +93,8 @@ const DailyChallengePage = () => {
     setState("active");
   }, [completedToday]);
 
+  const { saveQuizResult, saveDailyCompletion } = useQuizPersist();
+
   const handleAnswer = useCallback((selectedIndex: number, isCorrect: boolean, xpEarned: number) => {
     setAnswers((prev) => [...prev, { selected: selectedIndex, correct: isCorrect, xp: xpEarned }]);
     setTotalXP((prev) => prev + xpEarned);
@@ -101,14 +104,36 @@ const DailyChallengePage = () => {
   const handleNext = useCallback(() => {
     if (currentIndex + 1 >= questions.length) {
       const bonus = COMPLETION_BONUS;
-      setTotalXP((prev) => prev + bonus);
-      localStorage.setItem(getTodayKey(), JSON.stringify({ xp: totalXP + bonus, answers: answers.length }));
+      const finalXP = totalXP + bonus;
+      setTotalXP(finalXP);
+      localStorage.setItem(getTodayKey(), JSON.stringify({ xp: finalXP, answers: answers.length }));
       setCompletedToday(true);
+
+      // Persist to Cloud
+      const correctCount = answers.filter(a => a.correct).length;
+      saveQuizResult({
+        quizType: "daily_challenge",
+        topic: null,
+        totalQuestions: questions.length,
+        correctAnswers: correctCount,
+        totalXP: finalXP,
+        bestStreak: streak,
+        timedMode: true,
+        answers: questions.map((q, i) => ({
+          questionId: q.id,
+          selectedIndex: answers[i]?.selected ?? -1,
+          isCorrect: answers[i]?.correct ?? false,
+          xpEarned: answers[i]?.xp ?? 0,
+        })),
+      }).then((attemptId) => {
+        saveDailyCompletion(attemptId, correctCount, finalXP, bonus);
+      });
+
       setState("complete");
     } else {
       setCurrentIndex((i) => i + 1);
     }
-  }, [currentIndex, questions.length, totalXP, answers.length]);
+  }, [currentIndex, questions.length, totalXP, answers, questions, streak, saveQuizResult, saveDailyCompletion]);
 
   const correctCount = answers.filter((a) => a.correct).length;
 
