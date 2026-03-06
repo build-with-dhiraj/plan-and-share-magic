@@ -22,6 +22,7 @@ function tagColorClass(tag: string): string {
 
 const IssuePage = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
 
   const { data: article, isLoading } = useQuery({
     queryKey: ["article", id],
