@@ -133,7 +133,9 @@ const MentorPage = () => {
       {isEmpty ? (
           <div className="flex flex-col h-full">
             <div className="flex-1 flex flex-col items-center justify-center text-center px-4">
-              <img src={mentorAvatar} alt="AI Mentor" className="h-16 w-16 rounded-full object-cover object-[center_10%] scale-[2] mb-4 opacity-70 ring-2 ring-accent/10" />
+              <div className="h-16 w-16 rounded-full overflow-hidden mb-4 opacity-70 ring-2 ring-accent/10">
+                <img src={mentorAvatar} alt="AI Mentor" className="h-full w-full object-cover object-[center_10%] scale-[2]" />
+              </div>
               <p className="text-sm text-muted-foreground">
                 Ask anything about current affairs, get UPSC-focused answers with
                 citations from your database
