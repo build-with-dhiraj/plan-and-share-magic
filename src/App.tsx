@@ -10,6 +10,7 @@ import IssuePage from "./pages/IssuePage";
 import SyllabusPage from "./pages/SyllabusPage";
 import RevisionPage from "./pages/RevisionPage";
 import PracticePage from "./pages/PracticePage";
+import DailyChallengePage from "./pages/DailyChallengePage";
 import SavedPage from "./pages/SavedPage";
 import SearchPage from "./pages/SearchPage";
 import MentorPage from "./pages/MentorPage";
