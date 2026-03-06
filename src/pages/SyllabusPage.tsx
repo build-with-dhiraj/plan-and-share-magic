@@ -30,7 +30,7 @@ const SyllabusPage = () => {
         {GS_TOPICS.map((topic) => (
           <motion.div
             key={topic.slug}
-            className="glass-card rounded-xl p-5 cursor-pointer hover:shadow-md transition-shadow"
+            className="glass-card rounded-xl p-4 sm:p-5 cursor-pointer hover:shadow-md transition-shadow active:scale-[0.97]"
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.98 }}
           >
