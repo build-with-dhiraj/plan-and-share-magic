@@ -604,6 +604,7 @@ Deno.serve(async (req) => {
               const description = extractTag(item, "description");
 
               if (!title || !link) continue;
+              if (isJunkTitle(title)) { totalSkipped++; continue; }
 
               // Check if already exists
               const { data: existing } = await supabase
