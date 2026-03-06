@@ -16,7 +16,7 @@ export function MentorFAB() {
         whileHover={{ scale: 1.12, rotate: -3 }}
         whileTap={{ scale: 0.92 }}
         className={cn(
-          "h-16 w-16 rounded-2xl flex items-center justify-center",
+          "h-14 w-14 rounded-2xl flex items-center justify-center overflow-hidden p-0.5",
           "bg-gradient-to-br from-white/80 to-slate-100/80 dark:from-slate-700/80 dark:to-slate-800/80 backdrop-blur-sm",
           "shadow-[0_8px_30px_-4px_rgba(0,0,0,0.25),0_2px_8px_-2px_rgba(0,0,0,0.15)]",
           "drop-shadow-lg",
