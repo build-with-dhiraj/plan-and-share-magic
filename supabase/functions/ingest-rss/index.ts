@@ -677,6 +677,12 @@ Deno.serve(async (req) => {
               errors.push(`${source.name}: Empty scrape for ${url}`);
               continue;
             }
+            const scrapeTitle = scraped.title || `${source.label} Update`;
+            if (isJunkTitle(scrapeTitle) || isJunkContent(scraped.markdown)) {
+              errors.push(`${source.name}: Junk/error page for ${url}`);
+              totalSkipped++;
+              continue;
+            }
 
             // Check if already exists
             const { data: existing } = await supabase

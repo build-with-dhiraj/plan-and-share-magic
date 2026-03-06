@@ -71,6 +71,16 @@ Deno.serve(async (req) => {
 
     for (const article of articles) {
       try {
+        // ──── JUNK DETECTION: Skip and delete error pages ────
+        if (isJunkArticle(article.title, article.content)) {
+          console.log(`Deleting junk article: "${article.title}" (${article.id})`);
+          await supabase.from("facts").delete().eq("article_id", article.id);
+          await supabase.from("mcq_bank").delete().eq("article_id", article.id);
+          await supabase.from("articles").delete().eq("id", article.id);
+          errors.push(`Deleted junk article: ${article.title}`);
+          continue;
+        }
+
         // ──── STEP 1: Extract facts + tag syllabus ────
         const extractPrompt = `You are a UPSC Civil Services Prelims fact-extraction engine.
 
