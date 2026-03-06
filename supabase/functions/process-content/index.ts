@@ -11,6 +11,24 @@ const SYLLABUS_TOPICS = [
   "Science", "IR", "Society", "Ethics", "Art & Culture",
 ];
 
+// Junk article detection — reject error pages the scraper picked up
+const JUNK_PATTERNS = [
+  /^404\b/i, /not\s*found/i, /^403\b/i, /^500\b/i,
+  /access\s*denied/i, /forbidden/i, /page\s*(not|unavailable)/i,
+  /error\s*page/i, /server\s*error/i, /sorry.*inconvenience/i,
+  /under\s*maintenance/i, /^just a moment/i, /cloudflare/i,
+  /captcha/i, /blocked/i, /^\s*$/, /^untitled$/i,
+];
+function isJunkArticle(title: string, content: string | null): boolean {
+  if (!title || title.trim().length < 5) return true;
+  if (JUNK_PATTERNS.some((p) => p.test(title.trim()))) return true;
+  if (content) {
+    const lower = content.toLowerCase();
+    if (lower.includes("404 not found") || lower.includes("page not found") || lower.includes("access denied")) return true;
+  }
+  return false;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -53,6 +71,16 @@ Deno.serve(async (req) => {
 
     for (const article of articles) {
       try {
+        // ──── JUNK DETECTION: Skip and delete error pages ────
+        if (isJunkArticle(article.title, article.content)) {
+          console.log(`Deleting junk article: "${article.title}" (${article.id})`);
+          await supabase.from("facts").delete().eq("article_id", article.id);
+          await supabase.from("mcq_bank").delete().eq("article_id", article.id);
+          await supabase.from("articles").delete().eq("id", article.id);
+          errors.push(`Deleted junk article: ${article.title}`);
+          continue;
+        }
+
         // ──── STEP 1: Extract facts + tag syllabus ────
         const extractPrompt = `You are a UPSC Civil Services Prelims fact-extraction engine.
 

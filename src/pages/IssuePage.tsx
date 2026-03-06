@@ -69,7 +69,10 @@ const IssuePage = () => {
     );
   }
 
-  if (!article) {
+  // Check for junk / error-page articles
+  const isJunk = article && /^(404|403|500)\b|not\s*found|access\s*denied|error\s*page|sorry.*inconvenience|cloudflare|captcha/i.test(article.title);
+
+  if (!article || isJunk) {
     return (
       <div className="container max-w-4xl py-6 px-4 text-center text-muted-foreground">
         <p>Article not found.</p>

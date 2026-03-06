@@ -413,6 +413,33 @@ const SOURCE_REGISTRY: SourceEntry[] = [
 ];
 
 // ═══════════════════════════════════════════
+// Junk / error page detection
+// ═══════════════════════════════════════════
+const JUNK_TITLE_PATTERNS = [
+  /^404\b/i, /not\s*found/i, /^403\b/i, /^401\b/i, /^500\b/i,
+  /access\s*denied/i, /forbidden/i, /page\s*(not|unavailable)/i,
+  /error\s*page/i, /server\s*error/i, /sorry.*inconvenience/i,
+  /under\s*maintenance/i, /coming\s*soon/i, /^\s*$/, /^untitled$/i,
+  /^just a moment/i, /^attention required/i, /^please wait/i,
+  /cloudflare/i, /captcha/i, /blocked/i,
+];
+
+function isJunkTitle(title: string): boolean {
+  if (!title || title.trim().length < 5) return true;
+  return JUNK_TITLE_PATTERNS.some((p) => p.test(title.trim()));
+}
+
+function isJunkContent(content: string | null): boolean {
+  if (!content) return false;
+  const lower = content.toLowerCase();
+  // If the "article" content is mostly an error page
+  if (lower.includes("404 not found") || lower.includes("page not found")) return true;
+  if (lower.includes("access denied") || lower.includes("403 forbidden")) return true;
+  if (lower.includes("enable javascript") && content.length < 500) return true;
+  return false;
+}
+
+// ═══════════════════════════════════════════
 // XML helpers for RSS parsing
 // ═══════════════════════════════════════════
 function extractTag(xml: string, tag: string): string {
@@ -577,6 +604,7 @@ Deno.serve(async (req) => {
               const description = extractTag(item, "description");
 
               if (!title || !link) continue;
+              if (isJunkTitle(title)) { totalSkipped++; continue; }
 
               // Check if already exists
               const { data: existing } = await supabase
@@ -615,6 +643,9 @@ Deno.serve(async (req) => {
                 }
               }
 
+              // Final junk check after scraping
+              if (isJunkContent(fullContent)) { totalSkipped++; continue; }
+
               const { error } = await supabase.from("articles").insert({
                 source_name: source.name,
                 source_url: link,
@@ -644,6 +675,12 @@ Deno.serve(async (req) => {
             const scraped = await scrapeWithFirecrawl(url, firecrawlKey);
             if (!scraped?.markdown || scraped.markdown.length < 50) {
               errors.push(`${source.name}: Empty scrape for ${url}`);
+              continue;
+            }
+            const scrapeTitle = scraped.title || `${source.label} Update`;
+            if (isJunkTitle(scrapeTitle) || isJunkContent(scraped.markdown)) {
+              errors.push(`${source.name}: Junk/error page for ${url}`);
+              totalSkipped++;
               continue;
             }
 
