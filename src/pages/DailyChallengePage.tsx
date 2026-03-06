@@ -58,17 +58,8 @@ function getTodayKey() {
   return `daily-${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 }
 
-// Mock leaderboard
-const MOCK_LEADERBOARD: LeaderboardEntry[] = [
-  { rank: 1, name: "Priya S.", score: 5, xp: 95, time: 42, streak: 5 },
-  { rank: 2, name: "Arjun K.", score: 5, xp: 88, time: 58, streak: 5 },
-  { rank: 3, name: "Sneha M.", score: 4, xp: 72, time: 65, streak: 4 },
-  { rank: 4, name: "Rahul D.", score: 4, xp: 68, time: 78, streak: 3 },
-  { rank: 5, name: "Kavya R.", score: 3, xp: 55, time: 90, streak: 3 },
-  { rank: 6, name: "Amit P.", score: 3, xp: 48, time: 102, streak: 2 },
-  { rank: 7, name: "Neha G.", score: 2, xp: 35, time: 115, streak: 2 },
-  { rank: 8, name: "Vikram J.", score: 2, xp: 28, time: 130, streak: 1 },
-];
+// Fallback leaderboard (used while loading)
+const FALLBACK_LEADERBOARD: LeaderboardEntry[] = [];
 
 const rankIcons = [Crown, Medal, Medal];
 const rankColors = ["text-accent", "text-muted-foreground", "text-[hsl(var(--gs-history))]"];
