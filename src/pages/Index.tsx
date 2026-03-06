@@ -44,6 +44,7 @@ const Index = () => {
         .from("articles")
         .select("id, title, summary, syllabus_tags, source_name, source_url, published_at")
         .eq("processed", true)
+        .not("summary", "is", null)
         .gte("ingested_at", todayISO)
         .order("ingested_at", { ascending: false })
         .limit(20);
