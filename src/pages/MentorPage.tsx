@@ -126,23 +126,24 @@ const MentorPage = () => {
 
       {/* Chat area */}
       <div className="flex-1 overflow-hidden relative">
-        {isEmpty ? (
-          <div className="flex flex-col items-center justify-center h-full text-center px-4">
-            <img src={mentorAvatar} alt="AI Mentor" className="h-16 w-16 rounded-full object-cover mb-4 opacity-70 ring-2 ring-accent/10" />
-            <p className="text-sm text-muted-foreground mb-6">
-              Ask anything about current affairs, get UPSC-focused answers with
-              citations from your database
-            </p>
-            <div className="flex flex-wrap gap-2 justify-center max-w-lg">
+      {isEmpty ? (
+          <div className="flex flex-col h-full">
+            <div className="flex-1 flex flex-col items-center justify-center text-center px-4">
+              <img src={mentorAvatar} alt="AI Mentor" className="h-16 w-16 rounded-full object-cover mb-4 opacity-70 ring-2 ring-accent/10" />
+              <p className="text-sm text-muted-foreground">
+                Ask anything about current affairs, get UPSC-focused answers with
+                citations from your database
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 px-1 pb-2">
               {SUGGESTIONS.map((s) => (
-                <Badge
+                <button
                   key={s}
-                  variant="outline"
-                  className="cursor-pointer hover:bg-accent/10 hover:border-accent/40 text-xs py-1.5 px-3 transition-colors"
                   onClick={() => handleSuggestion(s)}
+                  className="text-left text-xs px-3 py-2.5 rounded-xl border border-border bg-card hover:bg-accent/10 hover:border-accent/40 text-muted-foreground transition-colors line-clamp-2"
                 >
                   {s}
-                </Badge>
+                </button>
               ))}
             </div>
           </div>
