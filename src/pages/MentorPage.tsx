@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect } from "react";
-import { Bot, Sparkles, Send, Square, Trash2, User } from "lucide-react";
+import { Sparkles, Send, Square, Trash2, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useMentorChat, type ChatMessage } from "@/hooks/useMentorChat";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { motion, AnimatePresence } from "framer-motion";
+import mentorAvatar from "@/assets/mentor-avatar.png";
 
 const SUGGESTIONS = [
   "Explain the significance of the 16th Finance Commission",
@@ -41,15 +41,13 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
       animate={{ opacity: 1, y: 0 }}
       className={`flex gap-2.5 ${isUser ? "flex-row-reverse" : ""}`}
     >
-      <div
-        className={`h-7 w-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
-          isUser ? "bg-primary/15" : "bg-accent/15"
-        }`}
-      >
+      <div className="shrink-0 mt-0.5">
         {isUser ? (
-          <User className="h-3.5 w-3.5 text-primary" />
+          <div className="h-7 w-7 rounded-full bg-primary/15 flex items-center justify-center">
+            <User className="h-3.5 w-3.5 text-primary" />
+          </div>
         ) : (
-          <Bot className="h-3.5 w-3.5 text-accent" />
+          <img src={mentorAvatar} alt="AI Mentor" className="h-7 w-7 rounded-full object-cover" />
         )}
       </div>
       <div
@@ -80,7 +78,6 @@ const MentorPage = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-scroll on new content
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
@@ -104,10 +101,8 @@ const MentorPage = () => {
     <div className="container max-w-3xl py-4 px-4 flex flex-col h-[calc(100vh-8rem)]">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-full bg-accent/20 flex items-center justify-center">
-            <Bot className="h-4 w-4 text-accent" />
-          </div>
+        <div className="flex items-center gap-3">
+          <img src={mentorAvatar} alt="AI Mentor" className="h-9 w-9 rounded-full object-cover ring-2 ring-accent/20" />
           <div>
             <h1 className="text-lg font-bold text-foreground">
               AI Study Mentor
@@ -133,7 +128,7 @@ const MentorPage = () => {
       <div className="flex-1 overflow-hidden relative">
         {isEmpty ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-4">
-            <Sparkles className="h-10 w-10 text-accent mb-4 opacity-50" />
+            <img src={mentorAvatar} alt="AI Mentor" className="h-16 w-16 rounded-full object-cover mb-4 opacity-70 ring-2 ring-accent/10" />
             <p className="text-sm text-muted-foreground mb-6">
               Ask anything about current affairs, get UPSC-focused answers with
               citations from your database
@@ -163,9 +158,7 @@ const MentorPage = () => {
             </AnimatePresence>
             {isLoading && messages[messages.length - 1]?.role === "user" && (
               <div className="flex gap-2.5">
-                <div className="h-7 w-7 rounded-full bg-accent/15 flex items-center justify-center shrink-0">
-                  <Bot className="h-3.5 w-3.5 text-accent" />
-                </div>
+                <img src={mentorAvatar} alt="AI Mentor" className="h-7 w-7 rounded-full object-cover shrink-0" />
                 <div className="bg-muted/60 rounded-2xl rounded-tl-sm">
                   <TypingDots />
                 </div>

@@ -1,6 +1,7 @@
 import { Outlet, useLocation } from "react-router-dom";
 import { DesktopNav } from "./DesktopNav";
 import { MobileNav } from "./MobileNav";
+import { MentorFAB } from "@/components/mentor/MentorFAB";
 
 const HIDE_NAV_ROUTES = ["/onboarding", "/auth"];
 
@@ -15,6 +16,7 @@ export function AppLayout() {
         <Outlet />
       </main>
       {!hideNav && <MobileNav />}
+      {!hideNav && <MentorFAB />}
     </div>
   );
 }
