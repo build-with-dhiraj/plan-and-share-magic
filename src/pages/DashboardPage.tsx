@@ -1,9 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Flame, BookOpen, Brain, TrendingUp } from "lucide-react";
 import { XPStreakWidget } from "@/components/gamification/XPStreakWidget";
+import { StreakCalendar } from "@/components/gamification/StreakCalendar";
 
 const DashboardPage = () => (
-  <div className="container max-w-4xl py-6 px-4">
+  <div className="container max-w-4xl py-6 px-4 pb-24 lg:pb-6">
     <div className="flex items-center justify-between mb-6">
       <h1 className="text-2xl font-bold text-foreground tracking-tight">Dashboard</h1>
       <XPStreakWidget streak={7} xp={340} />
@@ -25,6 +26,9 @@ const DashboardPage = () => (
         </Card>
       ))}
     </div>
+
+    {/* Streak Calendar */}
+    <StreakCalendar className="mb-6" />
 
     <Card className="glass-card">
       <CardHeader>
