@@ -74,7 +74,26 @@ const DailyChallengePage = () => {
   const [totalXP, setTotalXP] = useState(0);
   const [completedToday, setCompletedToday] = useState(false);
 
-  const [questions, setQuestions] = useState<MCQ[]>([]);
+  // Fetch real leaderboard from DB
+  const { data: dbLeaderboard = [] } = useQuery({
+    queryKey: ["daily-leaderboard"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("daily_leaderboard")
+        .select("*")
+        .order("rank", { ascending: true })
+        .limit(10);
+      return (data ?? []).map((e: any) => ({
+        rank: Number(e.rank),
+        name: e.display_name || "Anonymous",
+        score: e.score ?? 0,
+        xp: e.total_xp ?? 0,
+        time: 0,
+        streak: 0,
+        isYou: false,
+      })) as LeaderboardEntry[];
+    },
+  });
 
   useEffect(() => {
     getDailyQuestions().then(setQuestions);
