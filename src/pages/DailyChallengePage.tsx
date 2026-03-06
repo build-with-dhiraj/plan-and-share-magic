@@ -256,8 +256,8 @@ const DailyChallengePage = () => {
                 <Crown className="h-4 w-4 text-accent" /> Today's Leaderboard
               </h2>
               <div className="glass-card rounded-xl divide-y divide-border overflow-hidden">
-                {MOCK_LEADERBOARD.slice(0, 5).map((entry) => (
-                  <LeaderboardRow key={entry.rank} entry={entry} />
+                {(dbLeaderboard.length > 0 ? dbLeaderboard : FALLBACK_LEADERBOARD).slice(0, 5).map((entry, i) => (
+                  <LeaderboardRow key={`lb-${i}`} entry={entry} />
                 ))}
               </div>
               {completedToday && (
