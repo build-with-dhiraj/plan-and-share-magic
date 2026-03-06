@@ -1,55 +1,9 @@
 import { motion } from "framer-motion";
 import { IssueCard } from "@/components/issues/IssueCard";
-import { CheckCircle } from "lucide-react";
-
-const SAMPLE_ISSUES = [
-  {
-    id: "1",
-    title: "India's Digital Public Infrastructure Gets Global Recognition at G20",
-    synopsis: "India's DPI stack — Aadhaar, UPI, DigiLocker — endorsed as a model for developing nations at the G20 Digital Economy Ministers' meet.",
-    gsTags: ["economy", "ir", "science"] as const,
-    sourceCount: 7,
-    confidence: 0.92,
-    staticAnchor: "Digital India Programme, Article 21 (Privacy)",
-    isHero: true,
-  },
-  {
-    id: "2",
-    title: "Supreme Court Expands Scope of Article 21 to Include Climate Rights",
-    synopsis: "In a landmark ruling, the SC held that the right to a clean environment is integral to the right to life under Article 21.",
-    gsTags: ["polity", "environment"] as const,
-    sourceCount: 5,
-    confidence: 0.88,
-    staticAnchor: "Article 21, NHRC, Paris Agreement",
-  },
-  {
-    id: "3",
-    title: "RBI Introduces New Framework for Climate Risk Assessment in Banking",
-    synopsis: "RBI circular mandates all scheduled commercial banks to integrate climate-related financial risks into their stress-testing frameworks.",
-    gsTags: ["economy", "environment"] as const,
-    sourceCount: 4,
-    confidence: 0.85,
-    staticAnchor: "RBI Functions, Basel Norms, TCFD",
-  },
-  {
-    id: "4",
-    title: "Sixth Schedule Areas: Centre Proposes Amendments for Greater Autonomy",
-    synopsis: "MHA proposes amendments to Sixth Schedule to grant autonomous councils more fiscal and legislative powers in Northeast states.",
-    gsTags: ["polity", "society"] as const,
-    sourceCount: 3,
-    confidence: 0.82,
-    staticAnchor: "Sixth Schedule, Article 244, NEFA",
-  },
-  {
-    id: "5",
-    title: "ISRO's Gaganyaan Crew Module Successfully Completes Abort Test",
-    synopsis: "ISRO demonstrates the crew escape system of Gaganyaan in a test flight from Sriharikota, a major milestone for India's human spaceflight programme.",
-    gsTags: ["science"] as const,
-    sourceCount: 6,
-    confidence: 0.9,
-    staticAnchor: "ISRO Missions, Space Policy 2023",
-  },
-];
+import { CheckCircle, Loader2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import type { GsTag } from "@/components/issues/IssueCard";
 
 const container = {
   hidden: { opacity: 0 },
@@ -61,7 +15,71 @@ const item = {
   show: { opacity: 1, y: 0, transition: { duration: 0.35 } },
 };
 
+function normalizeTag(tag: string): GsTag | null {
+  const t = tag.toLowerCase();
+  if (t.includes("polity") || t.includes("governance")) return "polity";
+  if (t.includes("economy")) return "economy";
+  if (t.includes("environment") || t.includes("ecology") || t.includes("climate")) return "environment";
+  if (t.includes("international") || t === "ir") return "ir";
+  if (t.includes("science") || t.includes("tech")) return "science";
+  if (t.includes("ethics")) return "ethics";
+  if (t.includes("history") || t.includes("culture")) return "history";
+  if (t.includes("geography")) return "geography";
+  if (t.includes("society") || t.includes("social")) return "society";
+  if (t.includes("essay")) return "essay";
+  return null;
+}
+
 const Index = () => {
+  const { data: articles = [], isLoading } = useQuery({
+    queryKey: ["todays-brief"],
+    queryFn: async () => {
+      // Get today's date in UTC
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayISO = today.toISOString();
+
+      // First try today's processed articles
+      let { data, error } = await supabase
+        .from("articles")
+        .select("id, title, summary, syllabus_tags, source_name, source_url, published_at")
+        .eq("processed", true)
+        .gte("ingested_at", todayISO)
+        .order("ingested_at", { ascending: false })
+        .limit(20);
+
+      // If no articles today, get the most recent processed ones
+      if (!data || data.length === 0) {
+        const fallback = await supabase
+          .from("articles")
+          .select("id, title, summary, syllabus_tags, source_name, source_url, published_at")
+          .eq("processed", true)
+          .order("ingested_at", { ascending: false })
+          .limit(20);
+        data = fallback.data;
+      }
+
+      return (data ?? []).map((a) => {
+        const gsTags: GsTag[] = (a.syllabus_tags ?? [])
+          .map((t: string) => normalizeTag(t))
+          .filter(Boolean) as GsTag[];
+        return {
+          id: a.id,
+          title: a.title,
+          synopsis: a.summary || "",
+          gsTags: gsTags.length > 0 ? gsTags : (["polity"] as GsTag[]),
+          sourceCount: 1,
+          confidence: 0.85,
+          staticAnchor: undefined,
+          isHero: false,
+        };
+      });
+    },
+  });
+
+  // Mark first article as hero
+  const displayArticles = articles.map((a, i) => ({ ...a, isHero: i === 0 }));
+
   return (
     <div className="container max-w-3xl py-4 sm:py-6 px-4">
       <div className="mb-4 sm:mb-6">
@@ -71,23 +89,36 @@ const Index = () => {
         </p>
       </div>
 
-      <motion.div className="space-y-3 sm:space-y-4" variants={container} initial="hidden" animate="show">
-        {SAMPLE_ISSUES.map((issue) => (
-          <motion.div key={issue.id} variants={item}>
-            <IssueCard {...issue} />
+      {isLoading ? (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : displayArticles.length === 0 ? (
+        <div className="text-center py-20 text-muted-foreground">
+          <p className="text-sm">No articles processed yet today.</p>
+          <p className="text-xs mt-1">Content pipeline is running — check back soon.</p>
+        </div>
+      ) : (
+        <>
+          <motion.div className="space-y-3 sm:space-y-4" variants={container} initial="hidden" animate="show">
+            {displayArticles.map((issue) => (
+              <motion.div key={issue.id} variants={item}>
+                <IssueCard {...issue} />
+              </motion.div>
+            ))}
           </motion.div>
-        ))}
-      </motion.div>
 
-      <motion.div
-        className="mt-8 flex items-center justify-center gap-2 text-muted-foreground py-6"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.6 }}
-      >
-        <CheckCircle className="h-5 w-5 text-gs-economy" />
-        <span className="text-sm font-medium">You're all caught up</span>
-      </motion.div>
+          <motion.div
+            className="mt-8 flex items-center justify-center gap-2 text-muted-foreground py-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6 }}
+          >
+            <CheckCircle className="h-5 w-5 text-gs-economy" />
+            <span className="text-sm font-medium">You're all caught up</span>
+          </motion.div>
+        </>
+      )}
     </div>
   );
 };

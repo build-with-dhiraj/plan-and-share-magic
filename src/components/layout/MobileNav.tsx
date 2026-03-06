@@ -1,13 +1,12 @@
 import { Link, useLocation } from "react-router-dom";
-import { Newspaper, Compass, RotateCcw, Bookmark, User, Moon, Sun } from "lucide-react";
+import { Newspaper, Compass, RotateCcw, Target, User } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useTheme } from "next-themes";
 
 const NAV_ITEMS = [
   { label: "Today", path: "/", icon: Newspaper },
   { label: "Explore", path: "/syllabus", icon: Compass },
+  { label: "Practice", path: "/practice", icon: Target },
   { label: "Revise", path: "/revision", icon: RotateCcw },
-  { label: "Saved", path: "/saved", icon: Bookmark },
   { label: "Profile", path: "/settings", icon: User },
 ];
 

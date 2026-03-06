@@ -1,98 +1,205 @@
 import { useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { BookOpen, Brain, PenTool, Clock, ExternalLink } from "lucide-react";
+import { BookOpen, Brain, PenTool, Clock, ExternalLink, Loader2, Lightbulb, HelpCircle } from "lucide-react";
+
+function tagColorClass(tag: string): string {
+  const t = tag.toLowerCase();
+  if (t.includes("polity") || t.includes("governance")) return "gs-tag-polity";
+  if (t.includes("economy")) return "gs-tag-economy";
+  if (t.includes("environment") || t.includes("climate")) return "gs-tag-environment";
+  if (t.includes("international") || t === "ir") return "gs-tag-ir";
+  if (t.includes("science") || t.includes("tech")) return "gs-tag-science";
+  if (t.includes("ethics")) return "gs-tag-ethics";
+  if (t.includes("history") || t.includes("culture")) return "gs-tag-history";
+  if (t.includes("geography")) return "gs-tag-geography";
+  if (t.includes("society") || t.includes("social")) return "gs-tag-society";
+  return "";
+}
 
 const IssuePage = () => {
   const { id } = useParams();
 
+  const { data: article, isLoading } = useQuery({
+    queryKey: ["article", id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("articles")
+        .select("*")
+        .eq("id", id!)
+        .single();
+      return data;
+    },
+    enabled: !!id,
+  });
+
+  const { data: facts = [] } = useQuery({
+    queryKey: ["article-facts", id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("facts")
+        .select("*")
+        .eq("article_id", id!)
+        .order("confidence", { ascending: false });
+      return data ?? [];
+    },
+    enabled: !!id,
+  });
+
+  const { data: mcqs = [] } = useQuery({
+    queryKey: ["article-mcqs", id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("mcq_bank")
+        .select("id, question, options, correct_index, explanation, topic, difficulty")
+        .eq("article_id", id!)
+        .limit(5);
+      return data ?? [];
+    },
+    enabled: !!id,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!article) {
+    return (
+      <div className="container max-w-4xl py-6 px-4 text-center text-muted-foreground">
+        <p>Article not found.</p>
+      </div>
+    );
+  }
+
+  const tags = article.syllabus_tags ?? [];
+  const timeSince = article.published_at
+    ? formatTimeSince(new Date(article.published_at))
+    : article.ingested_at
+    ? formatTimeSince(new Date(article.ingested_at))
+    : "";
+
   return (
     <div className="container max-w-4xl py-4 sm:py-6 px-4">
-      {/* Reading progress bar */}
-      <div className="fixed top-0 lg:top-16 left-0 right-0 h-1 bg-muted z-40">
-        <div className="h-full bg-accent w-1/3 transition-all" />
-      </div>
-
       <div className="mb-5">
-        <div className="flex items-center gap-1.5 mb-2.5">
-          <Badge className="gs-tag-economy border text-xs">Economy</Badge>
-          <Badge className="gs-tag-environment border text-xs">Environment</Badge>
+        <div className="flex items-center gap-1.5 mb-2.5 flex-wrap">
+          {tags.map((tag: string) => (
+            <Badge key={tag} className={`${tagColorClass(tag)} border text-xs`}>{tag}</Badge>
+          ))}
         </div>
         <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground leading-tight mb-2.5">
-          RBI Introduces New Framework for Climate Risk Assessment in Banking
+          {article.title}
         </h1>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground text-xs sm:text-sm">
-          <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> Updated 2h ago</span>
-          <span>4 sources</span>
-          <span>Confidence: 85%</span>
+          {timeSince && <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> {timeSince}</span>}
+          <span>{article.source_name}</span>
+          {article.layer && <span>Layer {article.layer}</span>}
         </div>
       </div>
 
-      <Tabs defaultValue="prelims" className="w-full">
+      {article.summary && (
+        <div className="glass-card rounded-xl p-5 mb-5">
+          <p className="text-sm text-foreground leading-relaxed">{article.summary}</p>
+        </div>
+      )}
+
+      <Tabs defaultValue="facts" className="w-full">
         <TabsList className="w-full grid grid-cols-3 mb-5 h-11">
-          <TabsTrigger value="prelims" className="flex items-center gap-1.5 text-xs sm:text-sm h-9">
-            <BookOpen className="h-3.5 w-3.5" /> Prelims
+          <TabsTrigger value="facts" className="flex items-center gap-1.5 text-xs sm:text-sm h-9">
+            <Lightbulb className="h-3.5 w-3.5" /> Facts ({facts.length})
           </TabsTrigger>
-          <TabsTrigger value="mains" className="flex items-center gap-1.5 text-xs sm:text-sm h-9">
-            <Brain className="h-3.5 w-3.5" /> Mains
+          <TabsTrigger value="mcqs" className="flex items-center gap-1.5 text-xs sm:text-sm h-9">
+            <HelpCircle className="h-3.5 w-3.5" /> MCQs ({mcqs.length})
           </TabsTrigger>
-          <TabsTrigger value="essay" className="flex items-center gap-1.5 text-xs sm:text-sm h-9">
-            <PenTool className="h-3.5 w-3.5" /> Essay
+          <TabsTrigger value="source" className="flex items-center gap-1.5 text-xs sm:text-sm h-9">
+            <ExternalLink className="h-3.5 w-3.5" /> Source
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="prelims" className="reading-prose space-y-4">
-          <div className="glass-card rounded-xl p-5 space-y-3">
-            <h3 className="font-semibold text-foreground text-base font-sans">Key Facts</h3>
-            <ul className="space-y-2 text-sm">
-              <li className="flex items-start gap-2">
-                <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-accent shrink-0" />
-                <span>RBI mandates climate risk stress-testing for all scheduled commercial banks from FY 2025-26.</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-accent shrink-0" />
-                <span>Framework aligns with TCFD (Task Force on Climate-related Financial Disclosures) recommendations.</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-accent shrink-0" />
-                <span>Banks must classify assets into "green", "transition", and "brown" categories for risk assessment.</span>
-              </li>
-            </ul>
-          </div>
+        <TabsContent value="facts" className="space-y-3">
+          {facts.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">No facts extracted yet.</p>
+          ) : (
+            facts.map((f: any) => (
+              <div key={f.id} className="glass-card rounded-xl p-4">
+                <div className="flex items-start gap-2">
+                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-accent shrink-0" />
+                  <div>
+                    <p className="text-sm text-foreground">{f.fact_text}</p>
+                    <div className="flex items-center gap-2 mt-2">
+                      {f.confidence && (
+                        <span className="text-[10px] text-muted-foreground">{Math.round(Number(f.confidence) * 100)}% confidence</span>
+                      )}
+                      {f.verified && <Badge className="bg-green-500/15 text-green-600 border-green-500/30 text-[10px]">Verified</Badge>}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </TabsContent>
 
-        <TabsContent value="mains" className="reading-prose space-y-4">
-          <div className="glass-card rounded-xl p-5 space-y-3">
-            <h3 className="font-semibold text-foreground text-base font-sans">Background</h3>
-            <p className="text-sm text-muted-foreground">Climate change poses systemic risks to financial stability. The RBI's move follows global central banks integrating climate risks into prudential regulation...</p>
-          </div>
+        <TabsContent value="mcqs" className="space-y-3">
+          {mcqs.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">No MCQs generated yet.</p>
+          ) : (
+            mcqs.map((m: any, i: number) => (
+              <div key={m.id} className="glass-card rounded-xl p-4">
+                <p className="text-sm font-medium text-foreground mb-2">Q{i + 1}: {m.question}</p>
+                <div className="space-y-1.5 mb-3">
+                  {m.options.map((opt: string, oi: number) => (
+                    <div key={oi} className={`text-xs px-3 py-2 rounded-lg border ${oi === m.correct_index ? "border-green-500/40 bg-green-500/10 text-foreground" : "border-border text-muted-foreground"}`}>
+                      {String.fromCharCode(65 + oi)}. {opt}
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground"><strong>Explanation:</strong> {m.explanation}</p>
+              </div>
+            ))
+          )}
         </TabsContent>
 
-        <TabsContent value="essay" className="reading-prose space-y-4">
-          <div className="glass-card rounded-xl p-5 space-y-3">
-            <h3 className="font-semibold text-foreground text-base font-sans">Essay Hooks</h3>
-            <blockquote className="border-l-2 border-accent pl-4 italic text-sm text-muted-foreground">
-              "The economy is a wholly owned subsidiary of the environment." — Herman Daly
-            </blockquote>
+        <TabsContent value="source" className="space-y-3">
+          <div className="glass-card rounded-xl p-5">
+            <h3 className="font-semibold text-foreground text-sm mb-3">Original Source</h3>
+            <p className="text-sm text-muted-foreground mb-3">{article.source_name}</p>
+            <a
+              href={article.source_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-primary hover:underline flex items-center gap-1"
+            >
+              <ExternalLink className="h-3.5 w-3.5" /> Read original article
+            </a>
           </div>
+          {article.content && (
+            <div className="glass-card rounded-xl p-5">
+              <h3 className="font-semibold text-foreground text-sm mb-3">Full Content</h3>
+              <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line max-h-96 overflow-y-auto">
+                {article.content.slice(0, 3000)}
+                {article.content.length > 3000 && "..."}
+              </div>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
-
-      {/* Static Anchors */}
-      <div className="mt-8 glass-card rounded-xl p-5">
-        <h3 className="font-semibold text-foreground text-sm font-sans mb-3 flex items-center gap-2">
-          <ExternalLink className="h-4 w-4 text-accent" /> Static Anchors — Revise These
-        </h3>
-        <div className="flex flex-wrap gap-2">
-          {["RBI Functions", "Basel Norms III", "TCFD Framework", "Green Finance"].map((anchor) => (
-            <Badge key={anchor} variant="outline" className="text-xs cursor-pointer hover:bg-muted">
-              {anchor}
-            </Badge>
-          ))}
-        </div>
-      </div>
     </div>
   );
 };
+
+function formatTimeSince(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffH = Math.floor(diffMs / (1000 * 60 * 60));
+  if (diffH < 1) return "Just now";
+  if (diffH < 24) return `${diffH}h ago`;
+  const diffD = Math.floor(diffH / 24);
+  return `${diffD}d ago`;
+}
 
 export default IssuePage;
