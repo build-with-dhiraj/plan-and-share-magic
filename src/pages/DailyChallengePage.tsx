@@ -11,6 +11,7 @@ import { sampleMCQs, type MCQ } from "@/data/sampleMCQs";
 import { QuizQuestion } from "@/components/practice/QuizQuestion";
 import { cn } from "@/lib/utils";
 import { useQuizPersist } from "@/hooks/useQuizPersist";
+import { fetchMCQs } from "@/hooks/useMCQBank";
 
 type ChallengeState = "lobby" | "active" | "complete";
 
