@@ -37,6 +37,7 @@ const App = () => (
             <Route path="/syllabus" element={<SyllabusPage />} />
             <Route path="/revision" element={<RevisionPage />} />
             <Route path="/practice" element={<PracticePage />} />
+            <Route path="/daily" element={<DailyChallengePage />} />
             <Route path="/saved" element={<SavedPage />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/mentor" element={<MentorPage />} />
