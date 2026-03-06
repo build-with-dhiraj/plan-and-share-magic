@@ -13,7 +13,7 @@ interface IssueCardProps {
   synopsis: string;
   gsTags: readonly GsTag[];
   sourceCount: number;
-  confidence: number;
+  confidence: number | null;
   staticAnchor?: string;
   isHero?: boolean;
 }
