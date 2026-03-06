@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useSpacedRepetition } from "@/hooks/useSpacedRepetition";
 
 interface QuizResult {
   quizType: "practice" | "daily_challenge" | "topic_drill";
@@ -22,6 +23,7 @@ interface QuizResult {
 
 export function useQuizPersist() {
   const { user } = useAuth();
+  const { addToQueue } = useSpacedRepetition();
 
   const saveQuizResult = useCallback(async (result: QuizResult) => {
     if (!user) return null;
@@ -66,8 +68,15 @@ export function useQuizPersist() {
     // 3. Update streaks
     await updateStreaks(user.id, result.totalXP);
 
+    // 4. Add wrong answers to spaced repetition queue
+    for (const a of result.answers) {
+      if (!a.isCorrect) {
+        await addToQueue(a.questionId);
+      }
+    }
+
     return attempt.id;
-  }, [user]);
+  }, [user, addToQueue]);
 
   const saveDailyCompletion = useCallback(async (
     attemptId: string | null,
