@@ -105,7 +105,7 @@ const MentorPage = () => {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="h-9 w-9 rounded-full overflow-hidden ring-2 ring-accent/20">
-            <img src={mentorAvatar} alt="AI Mentor" className="h-full w-full object-cover object-[center_10%] scale-[2]" />
+            <img src={mentorAvatar} alt="AI Mentor" className="h-full w-full object-cover object-[center_5%] scale-[2.8]" />
           </div>
           <div>
             <h1 className="text-lg font-bold text-foreground">
