@@ -65,25 +65,26 @@ const SyllabusPage = () => {
           transition={{ staggerChildren: 0.05 }}
         >
           {topics.map((topic) => (
-            <motion.div
-              key={topic.slug}
-              className="glass-card rounded-xl p-4 sm:p-5 cursor-pointer hover:shadow-md transition-shadow active:scale-[0.97]"
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <SyllabusTagChip tag={topic.slug as any} />
-                <span className="text-xs text-muted-foreground">{topic.issueCount} issues</span>
-              </div>
-              <h3 className="font-semibold text-foreground text-xs sm:text-sm mb-2">{topic.name}</h3>
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Coverage</span>
-                  <span>{topic.issueCount > 0 ? Math.round((topic.issueCount / maxCount) * 100) : 0}%</span>
+            <Link key={topic.slug} to={`/search?tag=${topic.slug}`}>
+              <motion.div
+                className="glass-card rounded-xl p-4 sm:p-5 cursor-pointer hover:shadow-md transition-shadow active:scale-[0.97]"
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <SyllabusTagChip tag={topic.slug as any} />
+                  <span className="text-xs text-muted-foreground">{topic.issueCount} issues</span>
                 </div>
-                <Progress value={topic.issueCount > 0 ? (topic.issueCount / maxCount) * 100 : 0} className="h-1.5" />
-              </div>
-            </motion.div>
+                <h3 className="font-semibold text-foreground text-xs sm:text-sm mb-2">{topic.name}</h3>
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Coverage</span>
+                    <span>{topic.issueCount > 0 ? Math.round((topic.issueCount / maxCount) * 100) : 0}%</span>
+                  </div>
+                  <Progress value={topic.issueCount > 0 ? (topic.issueCount / maxCount) * 100 : 0} className="h-1.5" />
+                </div>
+              </motion.div>
+            </Link>
           ))}
         </motion.div>
       )}
