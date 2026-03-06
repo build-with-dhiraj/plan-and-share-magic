@@ -271,7 +271,7 @@ const SearchPage = () => {
         )}
 
         {!isLoading && !query && !hasActiveFilters && (
-          <div className="text-center py-12 text-muted-foreground space-y-2">
+          <div className="text-center py-6 text-muted-foreground space-y-1.5">
             <Search className="h-8 w-8 mx-auto text-muted-foreground/40" />
             <p className="text-sm">Search across all issues, facts, and topics</p>
             <p className="text-xs">Try "Article 21", "RBI policy", or "climate change"</p>
