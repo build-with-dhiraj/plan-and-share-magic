@@ -27,7 +27,7 @@ type TopicDef = (typeof GS_TOPIC_DEFS)[number];
 interface TopicArticle {
   id: string;
   title: string;
-  synopsis: string | null;
+  summary: string | null;
   source_name: string | null;
   published_at: string | null;
 }
@@ -62,7 +62,7 @@ const SyllabusPage = () => {
       // Use ilike + or to match any of the topic's keywords in syllabus_tags
       const { data, error } = await supabase
         .from("articles")
-        .select("id, title, synopsis, source_name, published_at")
+        .select("id, title, summary, source_name, published_at")
         .eq("processed", true)
         .contains("syllabus_tags", [selectedTopic.slug])
         .order("published_at", { ascending: false })
@@ -141,9 +141,9 @@ const SyllabusPage = () => {
                       <h3 className="font-semibold text-foreground text-sm leading-snug mb-1 group-hover:text-accent transition-colors">
                         {article.title}
                       </h3>
-                      {article.synopsis && (
+                      {article.summary && (
                         <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 mb-2">
-                          {article.synopsis}
+                          {article.summary}
                         </p>
                       )}
                       <div className="flex items-center justify-between">
