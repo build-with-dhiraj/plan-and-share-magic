@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type ChatMessage = { role: "user" | "assistant"; content: string };
 
-const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mentor-chat`;
+const CHAT_URL = "https://ligyvjuwvjeiiywxgewy.supabase.co/functions/v1/mentor-chat";
 
 export function useMentorChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -50,7 +50,7 @@ export function useMentorChat() {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxpZ3l2anV3dmplaWl5d3hnZXd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwNDEyMDQsImV4cCI6MjA4ODYxNzIwNH0.gAabUifSd4OIJpZ-ucj8Jk9JpJZ8J3jZLXuvnLpVxEU",
           },
           body: JSON.stringify({ messages: allMessages }),
           signal: controller.signal,
