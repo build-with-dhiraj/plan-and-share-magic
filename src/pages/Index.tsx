@@ -54,11 +54,12 @@ const Index = () => {
   const { data: articles = [], isLoading } = useQuery({
     queryKey: ["todays-brief"],
     queryFn: async () => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayISO = today.toISOString();
+      // Show articles published in last 36 hours (covers late-night articles from yesterday)
+      const cutoff = new Date();
+      cutoff.setHours(cutoff.getHours() - 36);
+      const cutoffISO = cutoff.toISOString();
 
-      // First try today's processed articles with relevance filter
+      // First try recent articles by publish date
       let { data, error } = await supabase
         .from("articles")
         .select(
@@ -66,11 +67,11 @@ const Index = () => {
         )
         .eq("processed", true)
         .not("summary", "is", null)
-        .gte("ingested_at", todayISO)
-        .order("ingested_at", { ascending: false })
+        .gte("published_at", cutoffISO)
+        .order("published_at", { ascending: false })
         .limit(30);
 
-      // If no articles today, get the most recent processed ones
+      // If no recent articles, get the most recent processed ones
       if (!data || data.length === 0) {
         const fallback = await supabase
           .from("articles")
@@ -79,7 +80,7 @@ const Index = () => {
           )
           .eq("processed", true)
           .not("summary", "is", null)
-          .order("ingested_at", { ascending: false })
+          .order("published_at", { ascending: false })
           .limit(30);
         data = fallback.data;
       }

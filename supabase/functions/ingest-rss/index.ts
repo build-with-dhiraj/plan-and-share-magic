@@ -606,6 +606,13 @@ Deno.serve(async (req) => {
               if (!title || !link) continue;
               if (isJunkTitle(title)) { totalSkipped++; continue; }
 
+              // Skip articles older than 48 hours
+              if (pubDate) {
+                const pubTime = new Date(pubDate).getTime();
+                const cutoff = Date.now() - 48 * 60 * 60 * 1000;
+                if (pubTime < cutoff) { totalSkipped++; continue; }
+              }
+
               // Check if already exists
               const { data: existing } = await supabase
                 .from("articles")
