@@ -58,8 +58,12 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const AZURE_ENDPOINT = Deno.env.get("AZURE_OPENAI_ENDPOINT");
+    const AZURE_API_KEY = Deno.env.get("AZURE_OPENAI_API_KEY");
+    const AZURE_DEPLOYMENT = Deno.env.get("AZURE_OPENAI_DEPLOYMENT") || "gpt-4.1";
+    const AZURE_API_VERSION = Deno.env.get("AZURE_OPENAI_API_VERSION") || "2024-12-01-preview";
+    if (!AZURE_ENDPOINT || !AZURE_API_KEY) throw new Error("Azure OpenAI credentials not configured");
+    const AI_URL = `${AZURE_ENDPOINT.replace(/\/$/, "")}/openai/deployments/${AZURE_DEPLOYMENT}/chat/completions?api-version=${AZURE_API_VERSION}`;
 
     const supabase = createClient(supabaseUrl, serviceKey);
 
@@ -124,14 +128,14 @@ Also assign a depth_tier:
 - "important_facts": Score 0.4-0.69, key facts worth noting but doesn't need deep dive
 - "rapid_fire": Score 0.3-0.39, one-liner awareness level`;
 
-        const triageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const triageResponse = await fetch(AI_URL, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "api-key": AZURE_API_KEY,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
+
             messages: [
               {
                 role: "system",
@@ -232,14 +236,14 @@ Generate comprehensive UPSC study material:
 
 IMPORTANT: All content must be directly derived from the article. No hallucination.`;
 
-        const extractResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const extractResponse = await fetch(AI_URL, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "api-key": AZURE_API_KEY,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
+
             messages: [
               {
                 role: "system",
@@ -414,14 +418,14 @@ RULES:
 - Difficulty: easy/medium/hard based on how nuanced the fact is
 - FACT SAFETY: The correct answer and explanation must be directly supported by the source fact`;
 
-            const mcqResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            const mcqResponse = await fetch(AI_URL, {
               method: "POST",
               headers: {
-                Authorization: `Bearer ${LOVABLE_API_KEY}`,
+                "api-key": AZURE_API_KEY,
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({
-                model: "google/gemini-2.5-flash",
+    
                 messages: [
                   { role: "system", content: "You generate UPSC-format MCQs. Return structured data via tool calls." },
                   { role: "user", content: mcqPrompt },
