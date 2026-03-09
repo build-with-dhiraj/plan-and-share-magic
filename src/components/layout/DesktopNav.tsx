@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Search, User, Flame, Bookmark } from "lucide-react";
+import { Search, User, Flame, Bookmark, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -7,11 +7,8 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 
 const NAV_ITEMS = [
   { label: "Today", path: "/" },
-  { label: "Explore", path: "/syllabus" },
-  { label: "Revise", path: "/revision" },
   { label: "Practice", path: "/practice" },
-  { label: "Daily", path: "/daily" },
-  { label: "Mentor", path: "/mentor" },
+  { label: "Syllabus", path: "/syllabus" },
 ];
 
 export function DesktopNav() {
@@ -55,6 +52,16 @@ export function DesktopNav() {
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Search</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" asChild>
+                  <Link to="/revision">
+                    <RotateCcw className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Revise</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>

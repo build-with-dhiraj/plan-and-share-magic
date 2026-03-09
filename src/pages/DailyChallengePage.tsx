@@ -11,7 +11,7 @@ import { sampleMCQs, type MCQ } from "@/data/sampleMCQs";
 import { QuizQuestion } from "@/components/practice/QuizQuestion";
 import { cn } from "@/lib/utils";
 import { useQuizPersist } from "@/hooks/useQuizPersist";
-import { fetchMCQs } from "@/hooks/useMCQBank";
+import { fetchTodaysMCQs } from "@/hooks/useMCQBank";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -49,9 +49,9 @@ function seededShuffle<T>(arr: T[], seed: number): T[] {
 
 async function getDailyQuestions(): Promise<MCQ[]> {
   const seed = getDailySeed();
-  // Try DB first, fallback to sample
-  const dbMCQs = await fetchMCQs({ dailyEligible: true, limit: 50 });
-  const pool = dbMCQs.length >= DAILY_Q_COUNT ? dbMCQs : sampleMCQs;
+  // Fetch today's article-linked MCQs (with fallback cascade)
+  const todayMCQs = await fetchTodaysMCQs(20);
+  const pool = todayMCQs.length >= DAILY_Q_COUNT ? todayMCQs : sampleMCQs;
   return seededShuffle(pool, seed).slice(0, DAILY_Q_COUNT);
 }
 

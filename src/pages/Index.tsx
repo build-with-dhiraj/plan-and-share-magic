@@ -36,6 +36,8 @@ type TieredArticle = {
   synopsis: string;
   gsTags: GsTag[];
   gsPapers: string[];
+  prelimsKeywords: string[];
+  hasMainsAngle: boolean;
   sourceCount: number;
   confidence: number | null;
   staticAnchor?: string;
@@ -61,7 +63,7 @@ const Index = () => {
       // First try today's processed articles with relevance filter
       let { data, error } = await supabase
         .from("articles")
-        .select("id, title, summary, syllabus_tags, source_name, source_url, published_at, upsc_relevance, depth_tier, gs_papers")
+        .select("id, title, summary, syllabus_tags, source_name, source_url, published_at, upsc_relevance, depth_tier, gs_papers, prelims_keywords, mains_angle")
         .eq("processed", true)
         .not("summary", "is", null)
         .gte("ingested_at", todayISO)
@@ -72,7 +74,7 @@ const Index = () => {
       if (!data || data.length === 0) {
         const fallback = await supabase
           .from("articles")
-          .select("id, title, summary, syllabus_tags, source_name, source_url, published_at, upsc_relevance, depth_tier, gs_papers")
+          .select("id, title, summary, syllabus_tags, source_name, source_url, published_at, upsc_relevance, depth_tier, gs_papers, prelims_keywords, mains_angle")
           .eq("processed", true)
           .not("summary", "is", null)
           .order("ingested_at", { ascending: false })
@@ -99,6 +101,8 @@ const Index = () => {
           synopsis: a.summary || "",
           gsTags: gsTags.length > 0 ? gsTags : (["polity"] as GsTag[]),
           gsPapers: a.gs_papers ?? [],
+          prelimsKeywords: a.prelims_keywords ?? [],
+          hasMainsAngle: !!a.mains_angle,
           sourceCount: 1,
           confidence: null,
           staticAnchor: undefined,

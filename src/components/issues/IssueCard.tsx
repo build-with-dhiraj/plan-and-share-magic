@@ -19,11 +19,20 @@ interface IssueCardProps {
   synopsis: string;
   gsTags: readonly GsTag[];
   gsPapers?: string[];
+  prelimsKeywords?: string[];
+  hasMainsAngle?: boolean;
+  depthTier?: string | null;
   sourceCount: number;
   confidence: number | null;
   staticAnchor?: string;
   isHero?: boolean;
 }
+
+const TIER_LABELS: Record<string, string> = {
+  deep_analysis: "In Depth",
+  important_facts: "Key Facts",
+  rapid_fire: "Quick Bites",
+};
 
 const GS_PAPER_COLORS: Record<string, string> = {
   "GS-1": "gs-tag-history",
@@ -32,7 +41,7 @@ const GS_PAPER_COLORS: Record<string, string> = {
   "GS-4": "gs-tag-ethics",
 };
 
-export function IssueCard({ id, title, synopsis, gsTags, gsPapers = [], sourceCount, confidence, staticAnchor, isHero }: IssueCardProps) {
+export function IssueCard({ id, title, synopsis, gsTags, gsPapers = [], prelimsKeywords = [], hasMainsAngle, depthTier, sourceCount, confidence, staticAnchor, isHero }: IssueCardProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -75,7 +84,7 @@ export function IssueCard({ id, title, synopsis, gsTags, gsPapers = [], sourceCo
         whileHover={{ scale: 1.01 }}
         whileTap={{ scale: 0.97 }}
       >
-        <div className="flex items-start gap-1.5 mb-2 flex-wrap">
+        <div className="flex items-start gap-1.5 mb-1.5 flex-wrap">
           {gsPapers.map((paper) => (
             <Badge key={paper} variant="outline" className={`${GS_PAPER_COLORS[paper] || ""} border text-[10px] px-2 py-0.5 font-semibold`}>
               {paper}
@@ -86,11 +95,34 @@ export function IssueCard({ id, title, synopsis, gsTags, gsPapers = [], sourceCo
           ))}
         </div>
 
+        <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+          {prelimsKeywords.length > 0 && (
+            <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-600 border-blue-500/30 px-1.5 py-0">Prelims</Badge>
+          )}
+          {hasMainsAngle && (
+            <Badge variant="outline" className="text-[10px] bg-purple-500/10 text-purple-600 border-purple-500/30 px-1.5 py-0">Mains</Badge>
+          )}
+          {depthTier && TIER_LABELS[depthTier] && (
+            <span className="text-[10px] text-muted-foreground font-medium">{TIER_LABELS[depthTier]}</span>
+          )}
+        </div>
+
         <h3 className={`font-semibold text-foreground leading-snug mb-1.5 ${isHero ? "text-lg sm:text-xl" : "text-[15px] sm:text-base"}`}>
           {title}
         </h3>
 
-        <p className="text-[13px] sm:text-sm text-muted-foreground leading-relaxed mb-2.5 line-clamp-3">{synopsis}</p>
+        <p className="text-[13px] sm:text-sm text-muted-foreground leading-relaxed mb-1.5 line-clamp-3">{synopsis}</p>
+
+        {prelimsKeywords.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-2.5">
+            {prelimsKeywords.slice(0, 3).map((kw) => (
+              <span key={kw} className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{kw}</span>
+            ))}
+            {prelimsKeywords.length > 3 && (
+              <span className="text-[10px] text-muted-foreground">+{prelimsKeywords.length - 3} more</span>
+            )}
+          </div>
+        )}
 
         {staticAnchor && (
           <p className="text-xs text-accent font-medium mb-2.5 line-clamp-1">

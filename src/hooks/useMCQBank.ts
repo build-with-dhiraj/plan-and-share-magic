@@ -52,6 +52,68 @@ export async function fetchMCQs(options?: {
   }
 }
 
+/**
+ * Fetch MCQs generated from today's processed articles.
+ * Fallback cascade: today → last 3 days → all daily-eligible → sample MCQs.
+ */
+export async function fetchTodaysMCQs(limit: number = 20): Promise<MCQ[]> {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayISO = today.toISOString();
+
+  const mapRows = (rows: any[]): MCQ[] =>
+    rows.map((row: any) => ({
+      id: row.id,
+      question: row.question,
+      statements: row.statements || undefined,
+      options: row.options,
+      correctIndex: row.correct_index,
+      explanation: row.explanation,
+      topic: row.topic,
+      difficulty: row.difficulty as MCQ["difficulty"],
+      source: row.source || undefined,
+      year: row.year || undefined,
+      timeLimit: row.time_limit || 60,
+    }));
+
+  try {
+    // Try today's article-linked MCQs
+    const { data, error } = await supabase
+      .from("mcq_bank")
+      .select("*")
+      .not("article_id", "is", null)
+      .gte("created_at", todayISO)
+      .eq("is_daily_eligible", true)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (!error && data && data.length >= 5) {
+      return mapRows(data);
+    }
+
+    // Fallback: last 3 days
+    const threeDaysAgo = new Date();
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+    const { data: recentData } = await supabase
+      .from("mcq_bank")
+      .select("*")
+      .not("article_id", "is", null)
+      .gte("created_at", threeDaysAgo.toISOString())
+      .eq("is_daily_eligible", true)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (recentData && recentData.length >= 5) {
+      return mapRows(recentData);
+    }
+
+    // Fallback: all daily-eligible
+    return fetchMCQs({ dailyEligible: true, limit });
+  } catch {
+    return fetchMCQs({ dailyEligible: true, limit });
+  }
+}
+
 function filterSample(topic?: string | null): MCQ[] {
   if (topic) return sampleMCQs.filter((q) => q.topic === topic);
   return sampleMCQs;
