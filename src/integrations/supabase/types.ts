@@ -17,9 +17,17 @@ export type Database = {
       articles: {
         Row: {
           content: string | null
+          conclusion: string | null
+          detailed_analysis: Json | null
+          depth_tier: string | null
+          faqs: Json | null
+          gs_papers: string[] | null
           id: string
           ingested_at: string | null
           layer: string | null
+          mains_angle: string | null
+          mains_question: string | null
+          prelims_keywords: string[] | null
           processed: boolean | null
           published_at: string | null
           source_name: string
@@ -27,12 +35,21 @@ export type Database = {
           summary: string | null
           syllabus_tags: string[] | null
           title: string
+          upsc_relevance: number | null
         }
         Insert: {
           content?: string | null
+          conclusion?: string | null
+          detailed_analysis?: Json | null
+          depth_tier?: string | null
+          faqs?: Json | null
+          gs_papers?: string[] | null
           id?: string
           ingested_at?: string | null
           layer?: string | null
+          mains_angle?: string | null
+          mains_question?: string | null
+          prelims_keywords?: string[] | null
           processed?: boolean | null
           published_at?: string | null
           source_name: string
@@ -40,12 +57,21 @@ export type Database = {
           summary?: string | null
           syllabus_tags?: string[] | null
           title: string
+          upsc_relevance?: number | null
         }
         Update: {
           content?: string | null
+          conclusion?: string | null
+          detailed_analysis?: Json | null
+          depth_tier?: string | null
+          faqs?: Json | null
+          gs_papers?: string[] | null
           id?: string
           ingested_at?: string | null
           layer?: string | null
+          mains_angle?: string | null
+          mains_question?: string | null
+          prelims_keywords?: string[] | null
           processed?: boolean | null
           published_at?: string | null
           source_name?: string
@@ -53,6 +79,7 @@ export type Database = {
           summary?: string | null
           syllabus_tags?: string[] | null
           title?: string
+          upsc_relevance?: number | null
         }
         Relationships: []
       }

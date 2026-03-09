@@ -42,11 +42,11 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Parse optional batch_size from body
-    let batchSize = 5;
+    // Parse optional batch_size from body (increased defaults: 15 default, 30 max)
+    let batchSize = 15;
     try {
       const body = await req.json();
-      if (body?.batch_size) batchSize = Math.min(body.batch_size, 20);
+      if (body?.batch_size) batchSize = Math.min(body.batch_size, 30);
     } catch { /* no body is fine */ }
 
     // Fetch unprocessed articles
@@ -67,6 +67,8 @@ Deno.serve(async (req) => {
 
     let totalFacts = 0;
     let totalMCQs = 0;
+    let triaged = 0;
+    let lowRelevance = 0;
     const errors: string[] = [];
 
     for (const article of articles) {
@@ -81,22 +83,26 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // ──── STEP 1: Extract facts + tag syllabus ────
-        const extractPrompt = `You are a UPSC Civil Services Prelims fact-extraction engine.
+        // ──── STEP 1: TRIAGE — Score UPSC relevance ────
+        const triagePrompt = `You are a UPSC Civil Services exam content curator. Evaluate this article for UPSC relevance.
 
 ARTICLE TITLE: ${article.title}
-SOURCE: ${article.source_name} (${article.source_url})
-CONTENT: ${article.content || article.title}
+SOURCE: ${article.source_name}
+CONTENT (first 500 chars): ${(article.content || article.title).slice(0, 500)}
 
-INSTRUCTIONS:
-1. Extract 2-5 UPSC-relevant factual statements from this article.
-2. Each fact MUST be directly stated or clearly derivable from the article text — NO inference, NO hallucination.
-3. Tag each fact with 1-3 UPSC syllabus topics from: ${SYLLABUS_TOPICS.join(", ")}
-4. Rate confidence (0.5-1.0) based on how explicitly the fact is stated.
+Score the article's UPSC relevance from 0.0 to 1.0:
+- 0.0-0.2: No UPSC relevance (local crime, entertainment, sports scores, obituaries)
+- 0.3-0.4: Marginal relevance (general awareness only)
+- 0.5-0.6: Moderate relevance (useful for one GS paper)
+- 0.7-0.8: High relevance (important policy, scheme, judgment, report)
+- 0.9-1.0: Critical (landmark policy, constitutional matter, international treaty)
 
-FACT SAFETY: If the article doesn't contain UPSC-relevant facts, return an empty array.`;
+Also assign a depth_tier:
+- "deep_analysis": Score >= 0.7, topic warrants detailed analysis with multiple sections
+- "important_facts": Score 0.4-0.69, key facts worth noting but doesn't need deep dive
+- "rapid_fire": Score 0.3-0.39, one-liner awareness level`;
 
-        const factResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const triageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -105,105 +111,237 @@ FACT SAFETY: If the article doesn't contain UPSC-relevant facts, return an empty
           body: JSON.stringify({
             model: "google/gemini-2.5-flash",
             messages: [
-              { role: "system", content: "You extract UPSC-relevant facts from news articles. Return structured data via tool calls." },
+              { role: "system", content: "You triage news articles for UPSC relevance. Return structured data via tool calls." },
+              { role: "user", content: triagePrompt },
+            ],
+            tools: [
+              {
+                type: "function",
+                function: {
+                  name: "submit_triage",
+                  description: "Submit UPSC relevance triage result",
+                  parameters: {
+                    type: "object",
+                    properties: {
+                      upsc_relevance: { type: "number", description: "0.0-1.0 relevance score" },
+                      depth_tier: { type: "string", enum: ["deep_analysis", "important_facts", "rapid_fire"], description: "Content depth tier" },
+                      reasoning: { type: "string", description: "Brief reason for the score" },
+                    },
+                    required: ["upsc_relevance", "depth_tier", "reasoning"],
+                    additionalProperties: false,
+                  },
+                },
+              },
+            ],
+            tool_choice: { type: "function", function: { name: "submit_triage" } },
+          }),
+        });
+
+        if (!triageResponse.ok) {
+          if (triageResponse.status === 429) {
+            errors.push(`Rate limited on triage for ${article.id}`);
+            continue;
+          }
+          if (triageResponse.status === 402) {
+            errors.push("Payment required for AI gateway");
+            break;
+          }
+          const t = await triageResponse.text();
+          errors.push(`Triage AI error for ${article.id}: ${triageResponse.status} ${t}`);
+          continue;
+        }
+
+        const triageResult = await triageResponse.json();
+        const triageToolCall = triageResult.choices?.[0]?.message?.tool_calls?.[0];
+        if (!triageToolCall) {
+          errors.push(`No triage tool call for article ${article.id}`);
+          await supabase.from("articles").update({ processed: true, upsc_relevance: 0 }).eq("id", article.id);
+          continue;
+        }
+
+        const triage = JSON.parse(triageToolCall.function.arguments);
+        const relevance = Math.max(0, Math.min(1, Number(triage.upsc_relevance) || 0));
+        const depthTier = triage.depth_tier || "rapid_fire";
+        triaged++;
+
+        // Articles below 0.3 relevance → mark processed, skip AI generation
+        if (relevance < 0.3) {
+          console.log(`Low relevance (${relevance}): "${article.title}"`);
+          await supabase.from("articles").update({
+            processed: true,
+            upsc_relevance: relevance,
+            depth_tier: depthTier,
+          }).eq("id", article.id);
+          lowRelevance++;
+          continue;
+        }
+
+        // ──── STEP 2: STRUCTURED EXTRACTION — Full Drishti skeleton ────
+        const extractPrompt = `You are a UPSC Civil Services content creator producing Drishti IAS-style study material.
+
+ARTICLE TITLE: ${article.title}
+SOURCE: ${article.source_name} (${article.source_url})
+CONTENT: ${article.content || article.title}
+DEPTH TIER: ${depthTier}
+UPSC RELEVANCE: ${relevance}
+
+Generate comprehensive UPSC study material:
+
+1. **summary**: 2-3 bullet points for "Why in News" section
+2. **prelims_keywords**: Key terms, schemes, reports, bodies mentioned (for quick Prelims revision)
+3. **mains_angle**: A paragraph on "Why this matters for Mains" — connect to governance, policy, rights, development
+4. **mains_question**: One practice Mains question (e.g., "Examine the structural factors..." or "Critically analyze...")
+5. **detailed_analysis**: Array of {heading, content} sections. For deep_analysis: 4-6 sections. For important_facts: 2-3 sections. For rapid_fire: 1 section.
+6. **conclusion**: 1-2 sentence synthesis/way forward
+7. **faqs**: 3-5 Q&A pairs for quick revision
+8. **gs_papers**: Which GS papers this maps to (GS-1, GS-2, GS-3, GS-4)
+9. **syllabus_tags**: Specific UPSC syllabus sub-topics from: ${SYLLABUS_TOPICS.join(", ")}
+10. **facts**: 2-5 factual statements for Prelims (each with syllabus_tags and confidence 0.5-1.0)
+
+IMPORTANT: All content must be directly derived from the article. No hallucination.`;
+
+        const extractResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash",
+            messages: [
+              { role: "system", content: "You produce UPSC study material in Drishti IAS style. Return structured data via tool calls." },
               { role: "user", content: extractPrompt },
             ],
             tools: [
               {
                 type: "function",
                 function: {
-                  name: "submit_facts",
-                  description: "Submit extracted facts from the article",
+                  name: "submit_content",
+                  description: "Submit structured UPSC study content",
                   parameters: {
                     type: "object",
                     properties: {
+                      summary: { type: "string", description: "2-3 bullet 'Why in News' summary" },
+                      prelims_keywords: { type: "array", items: { type: "string" }, description: "Key terms for Prelims" },
+                      mains_angle: { type: "string", description: "Why this matters for Mains paragraph" },
+                      mains_question: { type: "string", description: "One practice Mains question" },
+                      detailed_analysis: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            heading: { type: "string" },
+                            content: { type: "string" },
+                          },
+                          required: ["heading", "content"],
+                          additionalProperties: false,
+                        },
+                        description: "Structured analysis sections",
+                      },
+                      conclusion: { type: "string", description: "1-2 sentence synthesis" },
+                      faqs: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            question: { type: "string" },
+                            answer: { type: "string" },
+                          },
+                          required: ["question", "answer"],
+                          additionalProperties: false,
+                        },
+                        description: "3-5 FAQ pairs",
+                      },
+                      gs_papers: { type: "array", items: { type: "string", enum: ["GS-1", "GS-2", "GS-3", "GS-4"] }, description: "Applicable GS papers" },
+                      syllabus_tags: { type: "array", items: { type: "string" }, description: "UPSC syllabus topics" },
                       facts: {
                         type: "array",
                         items: {
                           type: "object",
                           properties: {
-                            fact_text: { type: "string", description: "The factual statement" },
-                            syllabus_tags: { type: "array", items: { type: "string" }, description: "UPSC syllabus topics" },
-                            confidence: { type: "number", description: "0.5-1.0 confidence score" },
+                            fact_text: { type: "string" },
+                            syllabus_tags: { type: "array", items: { type: "string" } },
+                            confidence: { type: "number" },
                           },
                           required: ["fact_text", "syllabus_tags", "confidence"],
                           additionalProperties: false,
                         },
                       },
-                      summary: { type: "string", description: "One-line UPSC-relevant summary of the article" },
                     },
-                    required: ["facts", "summary"],
+                    required: ["summary", "prelims_keywords", "mains_angle", "mains_question", "detailed_analysis", "conclusion", "faqs", "gs_papers", "syllabus_tags", "facts"],
                     additionalProperties: false,
                   },
                 },
               },
             ],
-            tool_choice: { type: "function", function: { name: "submit_facts" } },
+            tool_choice: { type: "function", function: { name: "submit_content" } },
           }),
         });
 
-        if (!factResponse.ok) {
-          if (factResponse.status === 429) {
-            errors.push(`Rate limited on article ${article.id}`);
+        if (!extractResponse.ok) {
+          if (extractResponse.status === 429) {
+            errors.push(`Rate limited on extraction for ${article.id}`);
             continue;
           }
-          if (factResponse.status === 402) {
+          if (extractResponse.status === 402) {
             errors.push("Payment required for AI gateway");
             break;
           }
-          const t = await factResponse.text();
-          errors.push(`AI error for ${article.id}: ${factResponse.status} ${t}`);
+          const t = await extractResponse.text();
+          errors.push(`Extraction AI error for ${article.id}: ${extractResponse.status} ${t}`);
           continue;
         }
 
-        const factResult = await factResponse.json();
-        const toolCall = factResult.choices?.[0]?.message?.tool_calls?.[0];
-        if (!toolCall) {
-          errors.push(`No tool call returned for article ${article.id}`);
-          // Mark as processed anyway to avoid infinite retries
-          await supabase.from("articles").update({ processed: true }).eq("id", article.id);
+        const extractResult = await extractResponse.json();
+        const extractToolCall = extractResult.choices?.[0]?.message?.tool_calls?.[0];
+        if (!extractToolCall) {
+          errors.push(`No extraction tool call for article ${article.id}`);
+          await supabase.from("articles").update({ processed: true, upsc_relevance: relevance, depth_tier: depthTier }).eq("id", article.id);
           continue;
         }
 
-        const extracted = JSON.parse(toolCall.function.arguments);
+        const extracted = JSON.parse(extractToolCall.function.arguments);
         const facts = extracted.facts || [];
         const summary = extracted.summary || "";
 
-        // Collect syllabus tags from all facts for the article
-        const articleTags = [...new Set(facts.flatMap((f: any) => f.syllabus_tags))];
-
-        // Update article
+        // Update article with all Drishti-style fields
         await supabase.from("articles").update({
           processed: true,
           summary,
-          syllabus_tags: articleTags,
+          syllabus_tags: extracted.syllabus_tags || [],
+          upsc_relevance: relevance,
+          depth_tier: depthTier,
+          prelims_keywords: extracted.prelims_keywords || [],
+          mains_angle: extracted.mains_angle || null,
+          mains_question: extracted.mains_question || null,
+          detailed_analysis: extracted.detailed_analysis || null,
+          conclusion: extracted.conclusion || null,
+          faqs: extracted.faqs || null,
+          gs_papers: extracted.gs_papers || [],
         }).eq("id", article.id);
 
-        if (facts.length === 0) continue;
-
         // Insert facts
-        const factRows = facts.map((f: any) => ({
-          article_id: article.id,
-          fact_text: f.fact_text,
-          source_url: article.source_url,
-          syllabus_tags: f.syllabus_tags,
-          confidence: f.confidence,
-        }));
+        if (facts.length > 0) {
+          const factRows = facts.map((f: any) => ({
+            article_id: article.id,
+            fact_text: f.fact_text,
+            source_url: article.source_url,
+            syllabus_tags: f.syllabus_tags,
+            confidence: f.confidence,
+          }));
 
-        const { data: insertedFacts, error: factInsertErr } = await supabase
-          .from("facts")
-          .insert(factRows)
-          .select("id, fact_text, syllabus_tags");
+          const { data: insertedFacts, error: factInsertErr } = await supabase
+            .from("facts")
+            .insert(factRows)
+            .select("id, fact_text, syllabus_tags");
 
-        if (factInsertErr) {
-          errors.push(`Fact insert error for ${article.id}: ${factInsertErr.message}`);
-          continue;
-        }
+          if (factInsertErr) {
+            errors.push(`Fact insert error for ${article.id}: ${factInsertErr.message}`);
+          } else {
+            totalFacts += insertedFacts.length;
 
-        totalFacts += insertedFacts.length;
-
-        // ──── STEP 2: Generate MCQs from facts ────
-        const mcqPrompt = `You are a UPSC Prelims MCQ generator. Generate one high-quality MCQ for each fact below.
+            // ──── STEP 3: MCQ GENERATION ────
+            const mcqPrompt = `You are a UPSC Prelims MCQ generator. Generate one high-quality MCQ for each fact below.
 
 FACTS (from ${article.source_name}):
 ${insertedFacts.map((f: any, i: number) => `${i + 1}. ${f.fact_text}`).join("\n")}
@@ -216,98 +354,99 @@ RULES:
 - Difficulty: easy/medium/hard based on how nuanced the fact is
 - FACT SAFETY: The correct answer and explanation must be directly supported by the source fact`;
 
-        const mcqResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
-            messages: [
-              { role: "system", content: "You generate UPSC-format MCQs. Return structured data via tool calls." },
-              { role: "user", content: mcqPrompt },
-            ],
-            tools: [
-              {
-                type: "function",
-                function: {
-                  name: "submit_mcqs",
-                  description: "Submit generated MCQs",
-                  parameters: {
-                    type: "object",
-                    properties: {
-                      mcqs: {
-                        type: "array",
-                        items: {
-                          type: "object",
-                          properties: {
-                            question: { type: "string" },
-                            statements: { type: "array", items: { type: "string" }, description: "Optional statement list for statement-based questions" },
-                            options: { type: "array", items: { type: "string" }, minItems: 4, maxItems: 4 },
-                            correct_index: { type: "integer", minimum: 0, maximum: 3 },
-                            explanation: { type: "string" },
-                            difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
-                            fact_index: { type: "integer", description: "0-based index of the source fact" },
+            const mcqResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${LOVABLE_API_KEY}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: "google/gemini-2.5-flash",
+                messages: [
+                  { role: "system", content: "You generate UPSC-format MCQs. Return structured data via tool calls." },
+                  { role: "user", content: mcqPrompt },
+                ],
+                tools: [
+                  {
+                    type: "function",
+                    function: {
+                      name: "submit_mcqs",
+                      description: "Submit generated MCQs",
+                      parameters: {
+                        type: "object",
+                        properties: {
+                          mcqs: {
+                            type: "array",
+                            items: {
+                              type: "object",
+                              properties: {
+                                question: { type: "string" },
+                                statements: { type: "array", items: { type: "string" }, description: "Optional statement list for statement-based questions" },
+                                options: { type: "array", items: { type: "string" }, minItems: 4, maxItems: 4 },
+                                correct_index: { type: "integer", minimum: 0, maximum: 3 },
+                                explanation: { type: "string" },
+                                difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
+                                fact_index: { type: "integer", description: "0-based index of the source fact" },
+                              },
+                              required: ["question", "options", "correct_index", "explanation", "difficulty", "fact_index"],
+                              additionalProperties: false,
+                            },
                           },
-                          required: ["question", "options", "correct_index", "explanation", "difficulty", "fact_index"],
-                          additionalProperties: false,
                         },
+                        required: ["mcqs"],
+                        additionalProperties: false,
                       },
                     },
-                    required: ["mcqs"],
-                    additionalProperties: false,
                   },
-                },
-              },
-            ],
-            tool_choice: { type: "function", function: { name: "submit_mcqs" } },
-          }),
-        });
+                ],
+                tool_choice: { type: "function", function: { name: "submit_mcqs" } },
+              }),
+            });
 
-        if (!mcqResponse.ok) {
-          const t = await mcqResponse.text();
-          errors.push(`MCQ AI error for ${article.id}: ${mcqResponse.status} ${t}`);
-          continue;
-        }
+            if (!mcqResponse.ok) {
+              const t = await mcqResponse.text();
+              errors.push(`MCQ AI error for ${article.id}: ${mcqResponse.status} ${t}`);
+            } else {
+              const mcqResult = await mcqResponse.json();
+              const mcqToolCall = mcqResult.choices?.[0]?.message?.tool_calls?.[0];
+              if (!mcqToolCall) {
+                errors.push(`No MCQ tool call for article ${article.id}`);
+              } else {
+                const mcqData = JSON.parse(mcqToolCall.function.arguments);
+                const mcqs = mcqData.mcqs || [];
+                const articleTags = extracted.syllabus_tags || [];
 
-        const mcqResult = await mcqResponse.json();
-        const mcqToolCall = mcqResult.choices?.[0]?.message?.tool_calls?.[0];
-        if (!mcqToolCall) {
-          errors.push(`No MCQ tool call for article ${article.id}`);
-          continue;
-        }
+                const mcqRows = mcqs.map((m: any) => {
+                  const factIdx = m.fact_index ?? 0;
+                  const sourceFact = insertedFacts[factIdx] || insertedFacts[0];
+                  return {
+                    question: m.question,
+                    statements: m.statements || null,
+                    options: m.options,
+                    correct_index: m.correct_index,
+                    explanation: m.explanation,
+                    topic: sourceFact?.syllabus_tags?.[0] || articleTags[0] || "General",
+                    difficulty: m.difficulty,
+                    source: article.source_name,
+                    source_url: article.source_url,
+                    fact_id: sourceFact?.id || null,
+                    article_id: article.id,
+                    syllabus_tags: sourceFact?.syllabus_tags || articleTags,
+                    is_daily_eligible: true,
+                    is_verified: false,
+                  };
+                });
 
-        const mcqData = JSON.parse(mcqToolCall.function.arguments);
-        const mcqs = mcqData.mcqs || [];
-
-        const mcqRows = mcqs.map((m: any) => {
-          const factIdx = m.fact_index ?? 0;
-          const sourceFact = insertedFacts[factIdx] || insertedFacts[0];
-          return {
-            question: m.question,
-            statements: m.statements || null,
-            options: m.options,
-            correct_index: m.correct_index,
-            explanation: m.explanation,
-            topic: sourceFact?.syllabus_tags?.[0] || articleTags[0] || "General",
-            difficulty: m.difficulty,
-            source: article.source_name,
-            source_url: article.source_url,
-            fact_id: sourceFact?.id || null,
-            article_id: article.id,
-            syllabus_tags: sourceFact?.syllabus_tags || articleTags,
-            is_daily_eligible: true,
-            is_verified: false,
-          };
-        });
-
-        if (mcqRows.length > 0) {
-          const { error: mcqInsertErr } = await supabase.from("mcq_bank").insert(mcqRows);
-          if (mcqInsertErr) {
-            errors.push(`MCQ insert error: ${mcqInsertErr.message}`);
-          } else {
-            totalMCQs += mcqRows.length;
+                if (mcqRows.length > 0) {
+                  const { error: mcqInsertErr } = await supabase.from("mcq_bank").insert(mcqRows);
+                  if (mcqInsertErr) {
+                    errors.push(`MCQ insert error: ${mcqInsertErr.message}`);
+                  } else {
+                    totalMCQs += mcqRows.length;
+                  }
+                }
+              }
+            }
           }
         }
       } catch (articleErr) {
@@ -321,6 +460,8 @@ RULES:
       JSON.stringify({
         success: true,
         articles_processed: articles.length,
+        triaged,
+        low_relevance_skipped: lowRelevance,
         facts_extracted: totalFacts,
         mcqs_generated: totalMCQs,
         errors,

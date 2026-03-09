@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Bookmark, BookmarkCheck, RotateCcw, ChevronRight } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { SyllabusTagChip } from "./SyllabusTagChips";
 import { ConfidenceBadge } from "./ConfidenceBadge";
 import { SourceBadge } from "./SourceBadge";
@@ -17,13 +18,21 @@ interface IssueCardProps {
   title: string;
   synopsis: string;
   gsTags: readonly GsTag[];
+  gsPapers?: string[];
   sourceCount: number;
   confidence: number | null;
   staticAnchor?: string;
   isHero?: boolean;
 }
 
-export function IssueCard({ id, title, synopsis, gsTags, sourceCount, confidence, staticAnchor, isHero }: IssueCardProps) {
+const GS_PAPER_COLORS: Record<string, string> = {
+  "GS-1": "gs-tag-history",
+  "GS-2": "gs-tag-polity",
+  "GS-3": "gs-tag-economy",
+  "GS-4": "gs-tag-ethics",
+};
+
+export function IssueCard({ id, title, synopsis, gsTags, gsPapers = [], sourceCount, confidence, staticAnchor, isHero }: IssueCardProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -67,6 +76,11 @@ export function IssueCard({ id, title, synopsis, gsTags, sourceCount, confidence
         whileTap={{ scale: 0.97 }}
       >
         <div className="flex items-start gap-1.5 mb-2 flex-wrap">
+          {gsPapers.map((paper) => (
+            <Badge key={paper} variant="outline" className={`${GS_PAPER_COLORS[paper] || ""} border text-[10px] px-2 py-0.5 font-semibold`}>
+              {paper}
+            </Badge>
+          ))}
           {gsTags.map((tag) => (
             <SyllabusTagChip key={tag} tag={tag} />
           ))}

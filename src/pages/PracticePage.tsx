@@ -138,8 +138,8 @@ const PracticePage = () => {
                   <Trophy className="h-5 w-5 text-accent" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-foreground">Daily Challenge</p>
-                  <p className="text-[11px] text-muted-foreground">5 timed questions • Leaderboard • +25 bonus XP</p>
+                  <p className="text-sm font-semibold text-foreground">Today's CA Quiz</p>
+                  <p className="text-[11px] text-muted-foreground">Based on today's current affairs</p>
                 </div>
                 <Zap className="h-4 w-4 text-accent shrink-0" />
               </motion.div>
@@ -183,10 +183,10 @@ const PracticePage = () => {
             <div className="glass-card rounded-xl mb-5 overflow-hidden p-4 space-y-3">
               <div className="flex items-center gap-2">
                 <Target className="h-4 w-4 text-accent" />
-                <span className="text-sm font-semibold text-foreground">Quick Drill</span>
+                <span className="text-sm font-semibold text-foreground">Topic Practice</span>
               </div>
               <p className="text-sm text-muted-foreground">
-                10 random MCQs across all topics — test your UPSC readiness
+                Pick a syllabus topic and drill
               </p>
               <Button onClick={() => startQuiz(null)} className="w-full h-11 gap-2 text-sm font-semibold">
                 <Shuffle className="h-4 w-4" /> Start {timedMode ? "Timed" : "Random"} Drill
