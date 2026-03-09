@@ -39,17 +39,21 @@ const App = () => (
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-              {/* Protected routes */}
-              <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+              {/* Public content routes (no login required) */}
+              <Route element={<AppLayout />}>
                 <Route path="/" element={<Index />} />
                 <Route path="/issue/:id" element={<IssuePage />} />
                 <Route path="/syllabus" element={<SyllabusPage />} />
                 <Route path="/revision" element={<RevisionPage />} />
                 <Route path="/practice" element={<PracticePage />} />
                 <Route path="/daily" element={<DailyChallengePage />} />
-                <Route path="/saved" element={<SavedPage />} />
                 <Route path="/search" element={<SearchPage />} />
                 <Route path="/mentor" element={<MentorPage />} />
+              </Route>
+
+              {/* Protected routes (login required) */}
+              <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+                <Route path="/saved" element={<SavedPage />} />
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/admin" element={<AdminPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
