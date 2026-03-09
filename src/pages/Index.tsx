@@ -61,7 +61,9 @@ const Index = () => {
       // First try today's processed articles with relevance filter
       let { data, error } = await supabase
         .from("articles")
-        .select("id, title, summary, syllabus_tags, source_name, source_url, published_at, upsc_relevance, depth_tier, gs_papers")
+        .select(
+          "id, title, summary, syllabus_tags, source_name, source_url, published_at, upsc_relevance, depth_tier, gs_papers",
+        )
         .eq("processed", true)
         .not("summary", "is", null)
         .gte("ingested_at", todayISO)
@@ -72,7 +74,9 @@ const Index = () => {
       if (!data || data.length === 0) {
         const fallback = await supabase
           .from("articles")
-          .select("id, title, summary, syllabus_tags, source_name, source_url, published_at, upsc_relevance, depth_tier, gs_papers")
+          .select(
+            "id, title, summary, syllabus_tags, source_name, source_url, published_at, upsc_relevance, depth_tier, gs_papers",
+          )
           .eq("processed", true)
           .not("summary", "is", null)
           .order("ingested_at", { ascending: false })
@@ -90,9 +94,7 @@ const Index = () => {
       const capped = filtered.slice(0, 15);
 
       return capped.map((a: any) => {
-        const gsTags: GsTag[] = (a.syllabus_tags ?? [])
-          .map((t: string) => normalizeTag(t))
-          .filter(Boolean) as GsTag[];
+        const gsTags: GsTag[] = (a.syllabus_tags ?? []).map((t: string) => normalizeTag(t)).filter(Boolean) as GsTag[];
         return {
           id: a.id,
           title: a.title,
@@ -112,17 +114,19 @@ const Index = () => {
   });
 
   // Group articles by tier
-  const grouped = TIER_ORDER.reduce((acc, tier) => {
-    acc[tier] = articles.filter((a) => a.depthTier === tier);
-    return acc;
-  }, {} as Record<string, TieredArticle[]>);
+  const grouped = TIER_ORDER.reduce(
+    (acc, tier) => {
+      acc[tier] = articles.filter((a) => a.depthTier === tier);
+      return acc;
+    },
+    {} as Record<string, TieredArticle[]>,
+  );
 
   // Articles with no tier (old articles) go into a fallback
   const untied = articles.filter((a) => !a.depthTier);
 
   // Mark first article in each group as hero
-  const markHero = (list: TieredArticle[]) =>
-    list.map((a, i) => ({ ...a, isHero: i === 0 }));
+  const markHero = (list: TieredArticle[]) => list.map((a, i) => ({ ...a, isHero: i === 0 }));
 
   const hasTieredContent = TIER_ORDER.some((t) => grouped[t].length > 0);
 
