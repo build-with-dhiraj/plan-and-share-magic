@@ -7,24 +7,45 @@ const corsHeaders = {
 };
 
 const SYLLABUS_TOPICS = [
-  "Polity", "Economy", "Geography", "Environment", "History",
-  "Science", "IR", "Society", "Ethics", "Art & Culture",
+  "Polity",
+  "Economy",
+  "Geography",
+  "Environment",
+  "History",
+  "Science",
+  "IR",
+  "Society",
+  "Ethics",
+  "Art & Culture",
 ];
 
 // Junk article detection — reject error pages the scraper picked up
 const JUNK_PATTERNS = [
-  /^404\b/i, /not\s*found/i, /^403\b/i, /^500\b/i,
-  /access\s*denied/i, /forbidden/i, /page\s*(not|unavailable)/i,
-  /error\s*page/i, /server\s*error/i, /sorry.*inconvenience/i,
-  /under\s*maintenance/i, /^just a moment/i, /cloudflare/i,
-  /captcha/i, /blocked/i, /^\s*$/, /^untitled$/i,
+  /^404\b/i,
+  /not\s*found/i,
+  /^403\b/i,
+  /^500\b/i,
+  /access\s*denied/i,
+  /forbidden/i,
+  /page\s*(not|unavailable)/i,
+  /error\s*page/i,
+  /server\s*error/i,
+  /sorry.*inconvenience/i,
+  /under\s*maintenance/i,
+  /^just a moment/i,
+  /cloudflare/i,
+  /captcha/i,
+  /blocked/i,
+  /^\s*$/,
+  /^untitled$/i,
 ];
 function isJunkArticle(title: string, content: string | null): boolean {
   if (!title || title.trim().length < 5) return true;
   if (JUNK_PATTERNS.some((p) => p.test(title.trim()))) return true;
   if (content) {
     const lower = content.toLowerCase();
-    if (lower.includes("404 not found") || lower.includes("page not found") || lower.includes("access denied")) return true;
+    if (lower.includes("404 not found") || lower.includes("page not found") || lower.includes("access denied"))
+      return true;
   }
   return false;
 }
@@ -47,7 +68,9 @@ Deno.serve(async (req) => {
     try {
       const body = await req.json();
       if (body?.batch_size) batchSize = Math.min(body.batch_size, 30);
-    } catch { /* no body is fine */ }
+    } catch {
+      /* no body is fine */
+    }
 
     // Fetch unprocessed articles
     const { data: articles, error: fetchErr } = await supabase
@@ -59,10 +82,9 @@ Deno.serve(async (req) => {
 
     if (fetchErr) throw fetchErr;
     if (!articles || articles.length === 0) {
-      return new Response(
-        JSON.stringify({ success: true, processed: 0, message: "No unprocessed articles" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ success: true, processed: 0, message: "No unprocessed articles" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     let totalFacts = 0;
@@ -111,7 +133,10 @@ Also assign a depth_tier:
           body: JSON.stringify({
             model: "google/gemini-2.5-flash",
             messages: [
-              { role: "system", content: "You triage news articles for UPSC relevance. Return structured data via tool calls." },
+              {
+                role: "system",
+                content: "You triage news articles for UPSC relevance. Return structured data via tool calls.",
+              },
               { role: "user", content: triagePrompt },
             ],
             tools: [
@@ -124,7 +149,11 @@ Also assign a depth_tier:
                     type: "object",
                     properties: {
                       upsc_relevance: { type: "number", description: "0.0-1.0 relevance score" },
-                      depth_tier: { type: "string", enum: ["deep_analysis", "important_facts", "rapid_fire"], description: "Content depth tier" },
+                      depth_tier: {
+                        type: "string",
+                        enum: ["deep_analysis", "important_facts", "rapid_fire"],
+                        description: "Content depth tier",
+                      },
                       reasoning: { type: "string", description: "Brief reason for the score" },
                     },
                     required: ["upsc_relevance", "depth_tier", "reasoning"],
@@ -167,11 +196,14 @@ Also assign a depth_tier:
         // Articles below 0.3 relevance → mark processed, skip AI generation
         if (relevance < 0.3) {
           console.log(`Low relevance (${relevance}): "${article.title}"`);
-          await supabase.from("articles").update({
-            processed: true,
-            upsc_relevance: relevance,
-            depth_tier: depthTier,
-          }).eq("id", article.id);
+          await supabase
+            .from("articles")
+            .update({
+              processed: true,
+              upsc_relevance: relevance,
+              depth_tier: depthTier,
+            })
+            .eq("id", article.id);
           lowRelevance++;
           continue;
         }
@@ -209,7 +241,10 @@ IMPORTANT: All content must be directly derived from the article. No hallucinati
           body: JSON.stringify({
             model: "google/gemini-2.5-flash",
             messages: [
-              { role: "system", content: "You produce UPSC study material in Drishti IAS style. Return structured data via tool calls." },
+              {
+                role: "system",
+                content: "You produce UPSC study material in Drishti IAS style. Return structured data via tool calls.",
+              },
               { role: "user", content: extractPrompt },
             ],
             tools: [
@@ -222,7 +257,11 @@ IMPORTANT: All content must be directly derived from the article. No hallucinati
                     type: "object",
                     properties: {
                       summary: { type: "string", description: "2-3 bullet 'Why in News' summary" },
-                      prelims_keywords: { type: "array", items: { type: "string" }, description: "Key terms for Prelims" },
+                      prelims_keywords: {
+                        type: "array",
+                        items: { type: "string" },
+                        description: "Key terms for Prelims",
+                      },
                       mains_angle: { type: "string", description: "Why this matters for Mains paragraph" },
                       mains_question: { type: "string", description: "One practice Mains question" },
                       detailed_analysis: {
@@ -252,7 +291,11 @@ IMPORTANT: All content must be directly derived from the article. No hallucinati
                         },
                         description: "3-5 FAQ pairs",
                       },
-                      gs_papers: { type: "array", items: { type: "string", enum: ["GS-1", "GS-2", "GS-3", "GS-4"] }, description: "Applicable GS papers" },
+                      gs_papers: {
+                        type: "array",
+                        items: { type: "string", enum: ["GS-1", "GS-2", "GS-3", "GS-4"] },
+                        description: "Applicable GS papers",
+                      },
                       syllabus_tags: { type: "array", items: { type: "string" }, description: "UPSC syllabus topics" },
                       facts: {
                         type: "array",
@@ -268,7 +311,18 @@ IMPORTANT: All content must be directly derived from the article. No hallucinati
                         },
                       },
                     },
-                    required: ["summary", "prelims_keywords", "mains_angle", "mains_question", "detailed_analysis", "conclusion", "faqs", "gs_papers", "syllabus_tags", "facts"],
+                    required: [
+                      "summary",
+                      "prelims_keywords",
+                      "mains_angle",
+                      "mains_question",
+                      "detailed_analysis",
+                      "conclusion",
+                      "faqs",
+                      "gs_papers",
+                      "syllabus_tags",
+                      "facts",
+                    ],
                     additionalProperties: false,
                   },
                 },
@@ -296,7 +350,10 @@ IMPORTANT: All content must be directly derived from the article. No hallucinati
         const extractToolCall = extractResult.choices?.[0]?.message?.tool_calls?.[0];
         if (!extractToolCall) {
           errors.push(`No extraction tool call for article ${article.id}`);
-          await supabase.from("articles").update({ processed: true, upsc_relevance: relevance, depth_tier: depthTier }).eq("id", article.id);
+          await supabase
+            .from("articles")
+            .update({ processed: true, upsc_relevance: relevance, depth_tier: depthTier })
+            .eq("id", article.id);
           continue;
         }
 
@@ -305,20 +362,23 @@ IMPORTANT: All content must be directly derived from the article. No hallucinati
         const summary = extracted.summary || "";
 
         // Update article with all Drishti-style fields
-        await supabase.from("articles").update({
-          processed: true,
-          summary,
-          syllabus_tags: extracted.syllabus_tags || [],
-          upsc_relevance: relevance,
-          depth_tier: depthTier,
-          prelims_keywords: extracted.prelims_keywords || [],
-          mains_angle: extracted.mains_angle || null,
-          mains_question: extracted.mains_question || null,
-          detailed_analysis: extracted.detailed_analysis || null,
-          conclusion: extracted.conclusion || null,
-          faqs: extracted.faqs || null,
-          gs_papers: extracted.gs_papers || [],
-        }).eq("id", article.id);
+        await supabase
+          .from("articles")
+          .update({
+            processed: true,
+            summary,
+            syllabus_tags: extracted.syllabus_tags || [],
+            upsc_relevance: relevance,
+            depth_tier: depthTier,
+            prelims_keywords: extracted.prelims_keywords || [],
+            mains_angle: extracted.mains_angle || null,
+            mains_question: extracted.mains_question || null,
+            detailed_analysis: extracted.detailed_analysis || null,
+            conclusion: extracted.conclusion || null,
+            faqs: extracted.faqs || null,
+            gs_papers: extracted.gs_papers || [],
+          })
+          .eq("id", article.id);
 
         // Insert facts
         if (facts.length > 0) {
@@ -381,14 +441,25 @@ RULES:
                               type: "object",
                               properties: {
                                 question: { type: "string" },
-                                statements: { type: "array", items: { type: "string" }, description: "Optional statement list for statement-based questions" },
+                                statements: {
+                                  type: "array",
+                                  items: { type: "string" },
+                                  description: "Optional statement list for statement-based questions",
+                                },
                                 options: { type: "array", items: { type: "string" }, minItems: 4, maxItems: 4 },
                                 correct_index: { type: "integer", minimum: 0, maximum: 3 },
                                 explanation: { type: "string" },
                                 difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
                                 fact_index: { type: "integer", description: "0-based index of the source fact" },
                               },
-                              required: ["question", "options", "correct_index", "explanation", "difficulty", "fact_index"],
+                              required: [
+                                "question",
+                                "options",
+                                "correct_index",
+                                "explanation",
+                                "difficulty",
+                                "fact_index",
+                              ],
                               additionalProperties: false,
                             },
                           },
@@ -466,13 +537,13 @@ RULES:
         mcqs_generated: totalMCQs,
         errors,
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
     console.error("process-content error:", e);
-    return new Response(
-      JSON.stringify({ success: false, error: e instanceof Error ? e.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ success: false, error: e instanceof Error ? e.message : "Unknown error" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
