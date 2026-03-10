@@ -51,7 +51,6 @@ export function IssueCard({
   sourceCount,
   confidence,
   staticAnchor,
-  isHero,
 }: IssueCardProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
