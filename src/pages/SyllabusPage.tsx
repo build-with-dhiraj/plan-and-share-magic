@@ -10,16 +10,16 @@ import { Link } from "react-router-dom";
 import type { GsTag } from "@/components/issues/IssueCard";
 
 const GS_TOPIC_DEFS = [
-  { name: "Polity & Governance", slug: "polity" as GsTag, keywords: ["polity", "governance"] },
-  { name: "Economy", slug: "economy" as GsTag, keywords: ["economy"] },
-  { name: "Environment & Ecology", slug: "environment" as GsTag, keywords: ["environment", "ecology", "climate"] },
-  { name: "International Relations", slug: "ir" as GsTag, keywords: ["international", "ir"] },
-  { name: "Science & Technology", slug: "science" as GsTag, keywords: ["science", "tech"] },
-  { name: "Ethics & Integrity", slug: "ethics" as GsTag, keywords: ["ethics"] },
-  { name: "Indian History", slug: "history" as GsTag, keywords: ["history", "culture"] },
-  { name: "Geography", slug: "geography" as GsTag, keywords: ["geography"] },
-  { name: "Society", slug: "society" as GsTag, keywords: ["society", "social"] },
-  { name: "Essay", slug: "essay" as GsTag, keywords: ["essay"] },
+  { name: "Polity & Governance", slug: "polity" as GsTag, dbTag: "Polity", keywords: ["polity", "governance"] },
+  { name: "Economy", slug: "economy" as GsTag, dbTag: "Economy", keywords: ["economy"] },
+  { name: "Environment & Ecology", slug: "environment" as GsTag, dbTag: "Environment", keywords: ["environment", "ecology", "climate"] },
+  { name: "International Relations", slug: "ir" as GsTag, dbTag: "IR", keywords: ["international", "ir"] },
+  { name: "Science & Technology", slug: "science" as GsTag, dbTag: "Science", keywords: ["science", "tech"] },
+  { name: "Ethics & Integrity", slug: "ethics" as GsTag, dbTag: "Ethics", keywords: ["ethics"] },
+  { name: "Indian History", slug: "history" as GsTag, dbTag: "History", keywords: ["history", "culture"] },
+  { name: "Geography", slug: "geography" as GsTag, dbTag: "Geography", keywords: ["geography"] },
+  { name: "Society", slug: "society" as GsTag, dbTag: "Society", keywords: ["society", "social"] },
+  { name: "Essay", slug: "essay" as GsTag, dbTag: "Essay", keywords: ["essay"] },
 ] as const;
 
 type TopicDef = (typeof GS_TOPIC_DEFS)[number];
@@ -64,7 +64,7 @@ const SyllabusPage = () => {
         .from("articles")
         .select("id, title, summary, source_name, published_at")
         .eq("processed", true)
-        .contains("syllabus_tags", [selectedTopic.slug])
+        .contains("syllabus_tags", [selectedTopic.dbTag])
         .order("published_at", { ascending: false })
         .limit(20);
 
