@@ -169,7 +169,7 @@ const Index = () => {
       ) : hasTieredContent ? (
         <>
           {TIER_ORDER.map((tier) => {
-            const tierArticles = markHero(grouped[tier]);
+            const tierArticles = grouped[tier];
             if (tierArticles.length === 0) return null;
             return (
               <div key={tier} className="mb-6">
