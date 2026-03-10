@@ -220,55 +220,89 @@ async function scrapeWithFirecrawl(
 
 // ═══════════════════════════════════════════
 // Jina AI Reader (free, handles JS rendering)
+// Improved: JSON API, 20s timeout, 1 retry
 // ═══════════════════════════════════════════
 async function scrapeWithJina(
-  url: string
+  url: string,
+  retries = 1
 ): Promise<{ text: string; title?: string; links: string[] } | null> {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-    const resp = await fetch(`https://r.jina.ai/${url}`, {
-      headers: {
-        Accept: "text/plain",
-        "X-No-Cache": "true",
-      },
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
-    if (!resp.ok) {
-      console.error(`Jina error for ${url}: ${resp.status}`);
-      return null;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      if (attempt > 0) {
+        // Backoff: wait 2s before retry
+        await new Promise((r) => setTimeout(r, 2000));
+        console.log(`Jina retry ${attempt} for ${url}`);
+      }
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 20000);
+      const resp = await fetch(`https://r.jina.ai/${url}`, {
+        headers: {
+          Accept: "application/json",
+          "X-No-Cache": "true",
+          "X-Return-Format": "markdown",
+        },
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      if (!resp.ok) {
+        console.error(`Jina error for ${url}: ${resp.status}`);
+        if (attempt < retries) continue;
+        return null;
+      }
+
+      // Try JSON response first (structured data)
+      const raw = await resp.text();
+      let title: string | undefined;
+      let markdown = "";
+      const links: string[] = [];
+
+      try {
+        const json = JSON.parse(raw);
+        const data = json.data || json;
+        title = data.title || undefined;
+        markdown = data.content || data.markdown || data.text || "";
+        // Extract links from JSON response if available
+        if (data.links && Array.isArray(data.links)) {
+          for (const l of data.links) {
+            const href = typeof l === "string" ? l : l?.href || l?.url;
+            if (href?.startsWith("http")) links.push(href);
+          }
+        }
+      } catch {
+        // Fallback: parse as plain text (old format)
+        markdown = raw;
+        const titleMatch = raw.match(/^Title:\s*(.+)$/m);
+        title = titleMatch?.[1]?.trim();
+        const mdStart = raw.indexOf("Markdown Content:");
+        if (mdStart >= 0) markdown = raw.substring(mdStart + 17).trim();
+      }
+
+      if (!markdown || markdown.length < 100) {
+        if (attempt < retries) continue;
+        return null;
+      }
+
+      // Extract links from markdown [text](url)
+      const linkRegex = /\[([^\]]*)\]\(([^)]+)\)/g;
+      let m;
+      while ((m = linkRegex.exec(markdown)) !== null) {
+        const href = m[2].trim();
+        if (href.startsWith("http")) links.push(href);
+      }
+
+      return {
+        text: markdown,
+        title,
+        links: [...new Set(links)],
+      };
+    } catch (e) {
+      console.error(`Jina attempt ${attempt} exception for ${url}:`, e);
+      if (attempt >= retries) return null;
     }
-
-    const content = await resp.text();
-    if (!content || content.length < 100) return null;
-
-    // Jina format: Title: ...\nURL Source: ...\nMarkdown Content:\n...
-    const titleMatch = content.match(/^Title:\s*(.+)$/m);
-    const markdownStart = content.indexOf("Markdown Content:");
-    const markdown =
-      markdownStart >= 0
-        ? content.substring(markdownStart + 17).trim()
-        : content;
-
-    // Extract links from markdown [text](url)
-    const links: string[] = [];
-    const linkRegex = /\[([^\]]*)\]\(([^)]+)\)/g;
-    let m;
-    while ((m = linkRegex.exec(markdown)) !== null) {
-      const href = m[2].trim();
-      if (href.startsWith("http")) links.push(href);
-    }
-
-    return {
-      text: markdown,
-      title: titleMatch?.[1]?.trim(),
-      links: [...new Set(links)],
-    };
-  } catch (e) {
-    console.error(`Jina exception for ${url}:`, e);
-    return null;
   }
+  return null;
 }
 
 // ═══════════════════════════════════════════
@@ -300,10 +334,11 @@ async function scrapeArticle(
   return null;
 }
 
-// Fast scrape: Native only (used for batch article scraping to avoid timeout)
+// Fast scrape: Firecrawl → Native → optional Jina (when useJina=true for JS-heavy)
 async function scrapeArticleFast(
   url: string,
-  firecrawlKey: string
+  firecrawlKey: string,
+  useJina = false
 ): Promise<{ text: string; title?: string } | null> {
   if (firecrawlKey) {
     const result = await scrapeWithFirecrawl(url, firecrawlKey);
@@ -315,7 +350,33 @@ async function scrapeArticleFast(
   if (native?.text && native.text.length > 100) {
     return { text: native.text, title: native.title };
   }
+  // For JS-heavy sources, fall back to Jina (slower but handles SPA/JS sites)
+  if (useJina) {
+    const jina = await scrapeWithJina(url, 0); // no retry for batch speed
+    if (jina?.text && jina.text.length > 100) {
+      return { text: jina.text, title: jina.title };
+    }
+  }
   return null;
+}
+
+// Known JS-heavy domains that need Jina for article scraping
+const JS_HEAVY_DOMAINS = [
+  "downtoearth.org",
+  "forumias.com",
+  "insightsonindia.com",
+  "civilsdaily.com",
+  "iasbaba.com",
+  "iea.org",
+  "imf.org",
+  "worldbank.org",
+  "transparency.org",
+  "rsf.org",
+];
+
+function isJsHeavy(url: string): boolean {
+  const lower = url.toLowerCase();
+  return JS_HEAVY_DOMAINS.some((d) => lower.includes(d));
 }
 
 // ═══════════════════════════════════════════
@@ -428,12 +489,16 @@ Deno.serve(async (req) => {
     let scrapeFullText = true;
     let methodFilter: string | null = null;
     let forceAll = false;
+    let maxSources = 0; // 0 = no limit
+    let sourceNameFilter: string | null = null;
     try {
       const body = await req.json();
       if (body?.layers) layerFilter = body.layers;
       if (body?.scrape_full_text === false) scrapeFullText = false;
       if (body?.method) methodFilter = body.method; // "rss" or "firecrawl"
       if (body?.force_all) forceAll = true; // ignore crawl_frequency
+      if (body?.max_sources) maxSources = body.max_sources;
+      if (body?.source_name) sourceNameFilter = body.source_name;
     } catch {
       /* no body is fine */
     }
@@ -445,6 +510,9 @@ Deno.serve(async (req) => {
       .eq("active", true)
       .order("trust_weight", { ascending: false });
 
+    if (sourceNameFilter) {
+      query = query.eq("name", sourceNameFilter);
+    }
     if (layerFilter) {
       query = query.in("layer", layerFilter);
     }
@@ -467,7 +535,7 @@ Deno.serve(async (req) => {
     }
 
     // Filter by crawl_frequency (skip sources crawled recently, unless forceAll)
-    const sources: DBSource[] = forceAll
+    let sources: DBSource[] = forceAll
       ? dbSources
       : dbSources.filter((s: DBSource) => {
           if (!s.last_crawled_at) return true;
@@ -475,6 +543,14 @@ Deno.serve(async (req) => {
           const freqMs = s.crawl_frequency_minutes * 60 * 1000;
           return Date.now() - lastCrawl >= freqMs;
         });
+
+    // Apply max_sources cap to prevent compute overload
+    if (maxSources > 0 && sources.length > maxSources) {
+      console.log(
+        `Capping sources from ${sources.length} to ${maxSources}`
+      );
+      sources = sources.slice(0, maxSources);
+    }
 
     let totalIngested = 0;
     let totalSkipped = 0;
@@ -535,10 +611,11 @@ Deno.serve(async (req) => {
                   continue;
                 }
 
-                // Skip articles older than 48 hours
+                // Skip old articles (Layer D gets 30-day window, others 48h)
                 if (pubDate) {
                   const pubTime = new Date(pubDate).getTime();
-                  const cutoff = Date.now() - 48 * 60 * 60 * 1000;
+                  const maxAgeHours = source.layer === "D" ? 720 : 48;
+                  const cutoff = Date.now() - maxAgeHours * 60 * 60 * 1000;
                   if (pubTime < cutoff) {
                     totalSkipped++;
                     continue;
@@ -560,7 +637,7 @@ Deno.serve(async (req) => {
                     source.allow_full_text_storage &&
                     (!existing.content || existing.content.length < 200)
                   ) {
-                    const scraped = await scrapeArticleFast(link, firecrawlKey);
+                    const scraped = await scrapeArticleFast(link, firecrawlKey, isJsHeavy(link));
                     if (scraped?.text && scraped.text.length > 100) {
                       await supabase
                         .from("articles")
@@ -577,8 +654,9 @@ Deno.serve(async (req) => {
                 let fullContent = description || null;
 
                 // Scrape full text (respect copyright settings)
+                const jsHeavy = isJsHeavy(link);
                 if (scrapeFullText && source.allow_full_text_storage) {
-                  const scraped = await scrapeArticleFast(link, firecrawlKey);
+                  const scraped = await scrapeArticleFast(link, firecrawlKey, jsHeavy);
                   if (scraped?.text && scraped.text.length > 100) {
                     fullContent = scraped.text;
                     totalScraped++;
@@ -586,7 +664,7 @@ Deno.serve(async (req) => {
                   }
                 } else if (scrapeFullText && source.allow_excerpt_only) {
                   // For excerpt-only sources, scrape but truncate
-                  const scraped = await scrapeArticleFast(link, firecrawlKey);
+                  const scraped = await scrapeArticleFast(link, firecrawlKey, jsHeavy);
                   if (scraped?.text && scraped.text.length > 100) {
                     fullContent =
                       scraped.text.substring(0, 1500) +
@@ -721,10 +799,11 @@ Deno.serve(async (req) => {
                   continue;
                 }
 
-                // Scrape individual article
+                // Scrape individual article (enable Jina for JS-heavy sites)
                 const articleData = await scrapeArticleFast(
                   articleUrl,
-                  firecrawlKey
+                  firecrawlKey,
+                  isJsHeavy(articleUrl)
                 );
                 if (!articleData?.text || articleData.text.length < 100)
                   continue;
