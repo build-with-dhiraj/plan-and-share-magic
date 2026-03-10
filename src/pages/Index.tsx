@@ -79,7 +79,7 @@ const Index = () => {
   );
 
   const untied = articles.filter((a) => !a.depthTier);
-  const markHero = (list: typeof articles) => list.map((a, i) => ({ ...a, isHero: i === 0 }));
+  
   const hasTieredContent = TIER_ORDER.some((t) => grouped[t].length > 0);
 
   return (
