@@ -1,0 +1,138 @@
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { format, addDays, parseISO, isToday as isTodayFn } from "date-fns";
+import type { GsTag } from "@/components/issues/IssueCard";
+
+export type TieredArticle = {
+  id: string;
+  title: string;
+  synopsis: string;
+  gsTags: GsTag[];
+  gsPapers: string[];
+  sourceCount: number;
+  confidence: number | null;
+  staticAnchor?: string;
+  isHero: boolean;
+  depthTier: string | null;
+};
+
+export const TIER_ORDER = ["deep_analysis", "important_facts", "rapid_fire"] as const;
+
+export const TIER_LABELS: Record<string, string> = {
+  deep_analysis: "In Depth",
+  important_facts: "Key Facts",
+  rapid_fire: "Quick Bites",
+};
+
+export function normalizeTag(tag: string): GsTag | null {
+  const t = tag.toLowerCase();
+  if (t.includes("polity") || t.includes("governance")) return "polity";
+  if (t.includes("economy")) return "economy";
+  if (t.includes("environment") || t.includes("ecology") || t.includes("climate")) return "environment";
+  if (t.includes("international") || t === "ir") return "ir";
+  if (t.includes("science") || t.includes("tech")) return "science";
+  if (t.includes("ethics")) return "ethics";
+  if (t.includes("history") || t.includes("culture")) return "history";
+  if (t.includes("geography")) return "geography";
+  if (t.includes("society") || t.includes("social")) return "society";
+  if (t.includes("essay")) return "essay";
+  return null;
+}
+
+const SELECT_FIELDS =
+  "id, title, summary, syllabus_tags, source_name, source_url, published_at, upsc_relevance, depth_tier, gs_papers";
+
+function mapArticle(a: any): TieredArticle {
+  const gsTags: GsTag[] = (a.syllabus_tags ?? [])
+    .map((t: string) => normalizeTag(t))
+    .filter(Boolean) as GsTag[];
+  return {
+    id: a.id,
+    title: a.title,
+    synopsis: a.summary || "",
+    gsTags: gsTags.length > 0 ? gsTags : (["polity"] as GsTag[]),
+    gsPapers: a.gs_papers ?? [],
+    sourceCount: 1,
+    confidence: null,
+    staticAnchor: undefined,
+    isHero: false,
+    depthTier: a.depth_tier || null,
+  };
+}
+
+function filterByRelevance(data: any[]): any[] {
+  return data.filter((a) => {
+    if (a.upsc_relevance === null || a.upsc_relevance === undefined) return true;
+    return Number(a.upsc_relevance) >= 0.4;
+  });
+}
+
+async function fetchArticlesForToday(): Promise<TieredArticle[]> {
+  // Rolling 36-hour window (covers late-night articles from yesterday)
+  const cutoff = new Date();
+  cutoff.setHours(cutoff.getHours() - 36);
+  const cutoffISO = cutoff.toISOString();
+
+  let { data } = await supabase
+    .from("articles")
+    .select(SELECT_FIELDS)
+    .eq("processed", true)
+    .not("summary", "is", null)
+    .gte("published_at", cutoffISO)
+    .order("published_at", { ascending: false })
+    .limit(30);
+
+  // Fallback: get the most recent processed articles
+  if (!data || data.length === 0) {
+    const fallback = await supabase
+      .from("articles")
+      .select(SELECT_FIELDS)
+      .eq("processed", true)
+      .not("summary", "is", null)
+      .order("published_at", { ascending: false })
+      .limit(30);
+    data = fallback.data;
+  }
+
+  const filtered = filterByRelevance(data ?? []);
+  return filtered.slice(0, 15).map(mapArticle);
+}
+
+async function fetchArticlesForDate(dateString: string): Promise<TieredArticle[]> {
+  // Day boundaries in IST (UTC+05:30)
+  const dayStart = `${dateString}T00:00:00+05:30`;
+  const nextDay = format(addDays(parseISO(dateString), 1), "yyyy-MM-dd");
+  const dayEnd = `${nextDay}T00:00:00+05:30`;
+
+  const { data } = await supabase
+    .from("articles")
+    .select(SELECT_FIELDS)
+    .eq("processed", true)
+    .not("summary", "is", null)
+    .gte("published_at", dayStart)
+    .lt("published_at", dayEnd)
+    .order("published_at", { ascending: false })
+    .limit(30);
+
+  const filtered = filterByRelevance(data ?? []);
+  return filtered.slice(0, 15).map(mapArticle);
+}
+
+/**
+ * Hook to fetch articles for a specific date or "today".
+ * @param dateString - "YYYY-MM-DD" or null (meaning today)
+ */
+export function useDateArticles(dateString: string | null) {
+  const isToday = !dateString || isTodayFn(parseISO(dateString));
+  const queryKey = isToday ? "today" : dateString;
+
+  const { data: articles = [], isLoading } = useQuery({
+    queryKey: ["todays-brief", queryKey],
+    queryFn: () => (isToday ? fetchArticlesForToday() : fetchArticlesForDate(dateString!)),
+    refetchInterval: isToday ? 5 * 60 * 1000 : false, // only poll for today
+    refetchOnWindowFocus: isToday,
+    placeholderData: keepPreviousData,
+  });
+
+  return { articles, isLoading, isToday };
+}

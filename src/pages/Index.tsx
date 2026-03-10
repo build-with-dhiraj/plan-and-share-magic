@@ -1,9 +1,12 @@
+import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { IssueCard } from "@/components/issues/IssueCard";
-import { CheckCircle, Loader2 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import type { GsTag } from "@/components/issues/IssueCard";
+import { CheckCircle, Loader2, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
+import { format, parseISO, addDays, subDays, isToday as isTodayFn } from "date-fns";
+import { DateStrip } from "@/components/dates/DateStrip";
+import { DateCalendarPicker } from "@/components/dates/DateCalendarPicker";
+import { useDateArticles, TIER_ORDER, TIER_LABELS } from "@/hooks/useDateArticles";
 
 const container = {
   hidden: { opacity: 0 },
@@ -15,104 +18,56 @@ const item = {
   show: { opacity: 1, y: 0, transition: { duration: 0.35 } },
 };
 
-function normalizeTag(tag: string): GsTag | null {
-  const t = tag.toLowerCase();
-  if (t.includes("polity") || t.includes("governance")) return "polity";
-  if (t.includes("economy")) return "economy";
-  if (t.includes("environment") || t.includes("ecology") || t.includes("climate")) return "environment";
-  if (t.includes("international") || t === "ir") return "ir";
-  if (t.includes("science") || t.includes("tech")) return "science";
-  if (t.includes("ethics")) return "ethics";
-  if (t.includes("history") || t.includes("culture")) return "history";
-  if (t.includes("geography")) return "geography";
-  if (t.includes("society") || t.includes("social")) return "society";
-  if (t.includes("essay")) return "essay";
-  return null;
-}
-
-type TieredArticle = {
-  id: string;
-  title: string;
-  synopsis: string;
-  gsTags: GsTag[];
-  gsPapers: string[];
-  sourceCount: number;
-  confidence: number | null;
-  staticAnchor?: string;
-  isHero: boolean;
-  depthTier: string | null;
-};
-
-const TIER_ORDER = ["deep_analysis", "important_facts", "rapid_fire"] as const;
-const TIER_LABELS: Record<string, string> = {
-  deep_analysis: "In Depth",
-  important_facts: "Key Facts",
-  rapid_fire: "Quick Bites",
-};
-
 const Index = () => {
-  const { data: articles = [], isLoading } = useQuery({
-    queryKey: ["todays-brief"],
-    queryFn: async () => {
-      // Show articles published in last 36 hours (covers late-night articles from yesterday)
-      const cutoff = new Date();
-      cutoff.setHours(cutoff.getHours() - 36);
-      const cutoffISO = cutoff.toISOString();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
-      // First try recent articles by publish date
-      let { data, error } = await supabase
-        .from("articles")
-        .select(
-          "id, title, summary, syllabus_tags, source_name, source_url, published_at, upsc_relevance, depth_tier, gs_papers",
-        )
-        .eq("processed", true)
-        .not("summary", "is", null)
-        .gte("published_at", cutoffISO)
-        .order("published_at", { ascending: false })
-        .limit(30);
+  // Read date from URL param, validate it
+  const dateParam = searchParams.get("date");
+  const todayStr = format(new Date(), "yyyy-MM-dd");
 
-      // If no recent articles, get the most recent processed ones
-      if (!data || data.length === 0) {
-        const fallback = await supabase
-          .from("articles")
-          .select(
-            "id, title, summary, syllabus_tags, source_name, source_url, published_at, upsc_relevance, depth_tier, gs_papers",
-          )
-          .eq("processed", true)
-          .not("summary", "is", null)
-          .order("published_at", { ascending: false })
-          .limit(30);
-        data = fallback.data;
+  let selectedDate: string | null = null;
+  if (dateParam) {
+    try {
+      const parsed = parseISO(dateParam);
+      if (!isNaN(parsed.getTime()) && parsed <= new Date()) {
+        selectedDate = dateParam;
       }
+    } catch {
+      // invalid date, ignore
+    }
+  }
 
-      // Filter: only show articles with upsc_relevance >= 0.4 (or all if column is null for backward compat)
-      const filtered = (data ?? []).filter((a: any) => {
-        if (a.upsc_relevance === null || a.upsc_relevance === undefined) return true;
-        return Number(a.upsc_relevance) >= 0.4;
-      });
+  // If date param equals today, treat as null (today mode)
+  if (selectedDate === todayStr) selectedDate = null;
 
-      // Cap at 15 articles/day
-      const capped = filtered.slice(0, 15);
+  const { articles, isLoading, isToday } = useDateArticles(selectedDate);
 
-      return capped.map((a: any) => {
-        const gsTags: GsTag[] = (a.syllabus_tags ?? []).map((t: string) => normalizeTag(t)).filter(Boolean) as GsTag[];
-        return {
-          id: a.id,
-          title: a.title,
-          synopsis: a.summary || "",
-          gsTags: gsTags.length > 0 ? gsTags : (["polity"] as GsTag[]),
-          gsPapers: a.gs_papers ?? [],
-          sourceCount: 1,
-          confidence: null,
-          staticAnchor: undefined,
-          isHero: false,
-          depthTier: a.depth_tier || null,
-        } as TieredArticle;
-      });
-    },
-    refetchInterval: 5 * 60 * 1000,
-    refetchOnWindowFocus: true,
-  });
+  const displayDate = selectedDate ? parseISO(selectedDate) : new Date();
+  const displayDateStr = selectedDate || todayStr;
+
+  const handleDateSelect = (dateStr: string) => {
+    const todayString = format(new Date(), "yyyy-MM-dd");
+    if (dateStr === todayString) {
+      setSearchParams({}, { replace: false });
+    } else {
+      setSearchParams({ date: dateStr }, { replace: false });
+    }
+  };
+
+  const handleCalendarSelect = (date: Date) => {
+    handleDateSelect(format(date, "yyyy-MM-dd"));
+  };
+
+  const goToToday = () => {
+    setSearchParams({}, { replace: false });
+  };
+
+  // Adjacent date navigation for empty states
+  const prevDateStr = format(subDays(displayDate, 1), "yyyy-MM-dd");
+  const nextDate = addDays(displayDate, 1);
+  const nextDateStr = format(nextDate, "yyyy-MM-dd");
+  const canGoNext = nextDate <= new Date();
 
   // Group articles by tier
   const grouped = TIER_ORDER.reduce(
@@ -120,34 +75,96 @@ const Index = () => {
       acc[tier] = articles.filter((a) => a.depthTier === tier);
       return acc;
     },
-    {} as Record<string, TieredArticle[]>,
+    {} as Record<string, typeof articles>,
   );
 
-  // Articles with no tier (old articles) go into a fallback
   const untied = articles.filter((a) => !a.depthTier);
-
-  // Mark first article in each group as hero
-  const markHero = (list: TieredArticle[]) => list.map((a, i) => ({ ...a, isHero: i === 0 }));
-
+  const markHero = (list: typeof articles) => list.map((a, i) => ({ ...a, isHero: i === 0 }));
   const hasTieredContent = TIER_ORDER.some((t) => grouped[t].length > 0);
 
   return (
     <div className="container max-w-3xl py-4 sm:py-6 px-4 pb-24 lg:pb-6">
-      <div className="mb-4 sm:mb-6">
-        <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">Today's Brief</h1>
-        <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-          {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-        </p>
+      {/* Header */}
+      <div className="mb-3 sm:mb-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
+              {isToday ? "Today's Brief" : "Daily Brief"}
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+              {displayDate.toLocaleDateString("en-IN", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })}
+            </p>
+          </div>
+          {!isToday && (
+            <button
+              onClick={goToToday}
+              className="flex items-center gap-1 text-xs font-medium text-accent hover:text-accent/80 transition-colors"
+            >
+              Back to Today <ArrowRight className="h-3 w-3" />
+            </button>
+          )}
+        </div>
       </div>
 
+      {/* Date Strip */}
+      <DateStrip
+        selectedDate={displayDateStr}
+        onDateSelect={handleDateSelect}
+        onCalendarOpen={() => setCalendarOpen(true)}
+      />
+
+      {/* Calendar Picker */}
+      <DateCalendarPicker
+        selectedDate={displayDate}
+        onDateSelect={handleCalendarSelect}
+        open={calendarOpen}
+        onOpenChange={setCalendarOpen}
+      />
+
+      {/* Articles */}
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       ) : articles.length === 0 ? (
-        <div className="text-center py-20 text-muted-foreground">
-          <p className="text-sm">No articles processed yet today.</p>
-          <p className="text-xs mt-1">Content pipeline is running — check back soon.</p>
+        <div className="text-center py-16 text-muted-foreground">
+          {isToday ? (
+            <>
+              <p className="text-sm">No articles processed yet today.</p>
+              <p className="text-xs mt-1">Content pipeline is running — check back soon.</p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm mb-1">
+                No articles for{" "}
+                {displayDate.toLocaleDateString("en-IN", { day: "numeric", month: "long" })}
+              </p>
+              <p className="text-xs mb-4">Try a nearby date</p>
+              <div className="flex items-center justify-center gap-3">
+                <button
+                  onClick={() => handleDateSelect(prevDateStr)}
+                  className="flex items-center gap-1 text-xs font-medium text-accent hover:underline"
+                >
+                  <ChevronLeft className="h-3 w-3" />
+                  {format(subDays(displayDate, 1), "d MMM")}
+                </button>
+                {canGoNext && (
+                  <button
+                    onClick={() => handleDateSelect(nextDateStr)}
+                    className="flex items-center gap-1 text-xs font-medium text-accent hover:underline"
+                  >
+                    {format(nextDate, "d MMM")}
+                    <ChevronRight className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
+            </>
+          )}
         </div>
       ) : hasTieredContent ? (
         <>
@@ -199,7 +216,9 @@ const Index = () => {
           transition={{ delay: 0.6 }}
         >
           <CheckCircle className="h-5 w-5 text-gs-economy" />
-          <span className="text-sm font-medium">You're all caught up</span>
+          <span className="text-sm font-medium">
+            {isToday ? "You're all caught up" : "End of this day's brief"}
+          </span>
         </motion.div>
       )}
     </div>
