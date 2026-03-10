@@ -16,11 +16,73 @@ const JUNK_TITLE_PATTERNS = [
   /under\s*maintenance/i, /coming\s*soon/i, /^\s*$/, /^untitled$/i,
   /^just a moment/i, /^attention required/i, /^please wait/i,
   /cloudflare/i, /captcha/i, /blocked/i,
+  // Generic nav / site-level titles (not article-level)
+  /^detail$/i, /^home$/i, /^about$/i, /^about\s*us$/i,
+  /^contact$/i, /^login$/i, /^log\s*in$/i, /^sign\s*in$/i,
+  /^register$/i, /^search$/i, /^all\s*news$/i, /^news$/i,
+  /^campaigns$/i, /^voices$/i, /^press$/i, /^events$/i,
+  /^publications$/i, /^reports$/i, /^resources$/i,
+  /^what we do$/i, /^who we are$/i, /^our team$/i,
+  /^goals$/i, /^partners$/i,
+  /^data\s*center$/i, /^documentation$/i,
+  /login\s*for\s*members/i, /web\s*site\s*map/i,
+];
+
+// Generic site titles — when the <title> tag is just the site name, not an article
+const GENERIC_SITE_TITLE_PATTERNS = [
+  /^\s*news\s*-\s*\w+\.org/i,          // "News - Transparency.org"
+  /^\s*\w+\.org\s*$/i,                  // "Transparency.org"
+  /^wto\s*\|/i,                         // "WTO | ..."
+  /\|\s*food and agriculture/i,         // "... | FAO ..."
+  /\|\s*department of economic/i,       // "... | Dept of Economic..."
+  /\|\s*human development reports/i,    // "... | Human Development Reports"
 ];
 
 function isJunkTitle(title: string): boolean {
   if (!title || title.trim().length < 5) return true;
-  return JUNK_TITLE_PATTERNS.some((p) => p.test(title.trim()));
+  const t = title.trim();
+  if (JUNK_TITLE_PATTERNS.some((p) => p.test(t))) return true;
+  if (GENERIC_SITE_TITLE_PATTERNS.some((p) => p.test(t))) return true;
+  return false;
+}
+
+// Extract a real title from article content (first meaningful line)
+function extractTitleFromContent(content: string): string | null {
+  if (!content) return null;
+  const lines = content.split("\n").map((l) => l.trim()).filter(Boolean);
+  for (const line of lines.slice(0, 5)) {
+    // Skip dates, markdown images, links-only lines
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(line)) continue;
+    if (/^!\[/.test(line)) continue;
+    if (/^\[.*\]\(.*\)$/.test(line)) continue;
+    // Clean up markdown
+    let clean = line.replace(/^#+\s*/, "").replace(/^[-•*]\s*/, "").trim();
+    // Remove trailing pipes (table artifacts)
+    clean = clean.replace(/\s*\|.*$/, "").trim();
+    if (clean.length >= 15 && clean.length <= 200) {
+      return clean;
+    }
+  }
+  return null;
+}
+
+// Extract title from URL slug (fallback)
+function extractTitleFromUrl(url: string): string | null {
+  try {
+    const parts = new URL(url).pathname.split("/").filter(Boolean);
+    // Skip lang codes and generic segments
+    const skip = new Set(["en", "es", "fr", "detail", "news", "article", "articles", "post", "blog"]);
+    const slug = parts.filter((p) => !skip.has(p.toLowerCase())).pop();
+    if (!slug || slug.length < 5) return null;
+    const title = slug
+      .replace(/[-_]/g, " ")
+      .replace(/\.\w+$/, "") // remove extension
+      .trim();
+    // Title case
+    return title.replace(/\b\w/g, (c) => c.toUpperCase());
+  } catch {
+    return null;
+  }
 }
 
 function isJunkContent(content: string | null): boolean {
@@ -29,7 +91,31 @@ function isJunkContent(content: string | null): boolean {
   if (lower.includes("404 not found") || lower.includes("page not found")) return true;
   if (lower.includes("access denied") || lower.includes("403 forbidden")) return true;
   if (lower.includes("enable javascript") && content.length < 500) return true;
+  // Cookie consent / nav pages with very little real content
+  if (lower.includes("cookiebot") && content.length < 800) return true;
+  if (lower.includes("log in to continue") && content.length < 500) return true;
   return false;
+}
+
+// URLs that are clearly navigation pages, not articles
+const NAV_URL_PATTERNS = [
+  /\/our-office\//i, /\/our-team\//i, /\/partners\//i,
+  /\/programmes\//i, /\/projects\/?$/i, /\/success-stories\//i,
+  /\/videos\/?$/i, /\/user\/?$/i, /\/login/i, /\/search\/?$/i,
+  /\/campaigns\/?$/i, /\/what-we-do\/?$/i, /\/press\/?$/i,
+  /\/countries\/?$/i, /\/about\/?$/i, /\/contact\/?$/i,
+  /\/site\d?_e\.htm/i, // WTO site map
+  /\/data-center\/?$/i, /\/composite-indices\/?$/i,
+  /\/documentation-and-downloads\/?$/i,
+  /\/india-at-a-glance/i,
+  /\/fragments\/context\/?$/i,
+  /\/cpi#/i, /\/cpi\/?$/i, // transparency CPI index page
+  /\/news\/all\/?$/i, // listing page itself
+  /aboutcookies/i,
+];
+
+function isNavUrl(url: string): boolean {
+  return NAV_URL_PATTERNS.some((p) => p.test(url));
 }
 
 // ═══════════════════════════════════════════
@@ -424,11 +510,13 @@ async function discoverArticleUrls(
       if (/\.(css|js|png|jpg|jpeg|gif|svg|ico|woff|pdf|zip|xml)$/i.test(link)) return false;
       // Skip common nav/utility paths
       if (
-        /\/(tag|tags|category|categories|author|login|register|about|contact|privacy|terms|sitemap|feed|rss|search|archive)\b/i.test(
+        /\/(tag|tags|category|categories|author|login|register|about|contact|privacy|terms|sitemap|feed|rss|search|archive|our-team|our-office|partners|programmes|projects|success-stories|videos|campaigns|press|countries|data-center|composite-indices|user)\b/i.test(
           link
         )
       )
         return false;
+      // Skip known nav URLs
+      if (isNavUrl(link)) return false;
       // Apply urlPattern filter if provided
       if (urlPattern) {
         const re = new RegExp(urlPattern, "i");
@@ -787,6 +875,12 @@ Deno.serve(async (req) => {
               for (const articleUrl of articleUrls) {
                 if (newCount >= 10) break;
 
+                // Skip navigation/non-article URLs
+                if (isNavUrl(articleUrl)) {
+                  totalSkipped++;
+                  continue;
+                }
+
                 // Check if already exists
                 const { data: existing } = await supabase
                   .from("articles")
@@ -808,8 +902,25 @@ Deno.serve(async (req) => {
                 if (!articleData?.text || articleData.text.length < 100)
                   continue;
 
-                const articleTitle =
-                  articleData.title || `${source.label} Update`;
+                // Smart title resolution: scraped title → content extraction → URL slug → fallback
+                let articleTitle = articleData.title || "";
+                if (isJunkTitle(articleTitle)) {
+                  // Try extracting from content first line
+                  const fromContent = extractTitleFromContent(articleData.text);
+                  if (fromContent) {
+                    articleTitle = fromContent;
+                  } else {
+                    // Try extracting from URL slug
+                    const fromUrl = extractTitleFromUrl(articleUrl);
+                    if (fromUrl && fromUrl.length > 10) {
+                      articleTitle = fromUrl;
+                    } else {
+                      articleTitle = `${source.label} Update`;
+                    }
+                  }
+                }
+
+                // Final junk check on resolved title
                 if (isJunkTitle(articleTitle)) {
                   totalSkipped++;
                   continue;
