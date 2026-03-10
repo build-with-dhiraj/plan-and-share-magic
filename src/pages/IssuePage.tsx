@@ -1,11 +1,17 @@
 import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, ExternalLink, Loader2, ArrowLeft, ChevronDown, ChevronUp, BookOpen, PenTool, HelpCircle, Lightbulb, MessageSquare, FileText } from "lucide-react";
+import {
+  Clock, ExternalLink, Loader2, ArrowLeft, BookOpen, PenTool,
+  HelpCircle, Lightbulb, MessageSquare, FileText,
+  Bookmark, BookmarkCheck, RotateCcw, Target,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 function tagColorClass(tag: string): string {
   const t = tag.toLowerCase();
@@ -34,6 +40,8 @@ function gsPaperColorClass(paper: string): string {
 const IssuePage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   const { data: article, isLoading } = useQuery({
     queryKey: ["article", id],
@@ -74,6 +82,61 @@ const IssuePage = () => {
     enabled: !!id,
   });
 
+  // Bookmark state
+  const { data: isBookmarked = false } = useQuery({
+    queryKey: ["bookmark-status", user?.id, id],
+    queryFn: async () => {
+      if (!user) return false;
+      const { data } = await supabase
+        .from("bookmarks")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("item_id", id!)
+        .eq("item_type", "article")
+        .maybeSingle();
+      return !!data;
+    },
+    enabled: !!user && !!id,
+  });
+
+  const toggleBookmark = useMutation({
+    mutationFn: async () => {
+      if (!user) { toast.error("Sign in to bookmark"); return; }
+      if (isBookmarked) {
+        await supabase.from("bookmarks").delete().eq("user_id", user.id).eq("item_id", id!).eq("item_type", "article");
+      } else {
+        await supabase.from("bookmarks").insert({ user_id: user.id, item_id: id!, item_type: "article" });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bookmark-status", user?.id, id] });
+      queryClient.invalidateQueries({ queryKey: ["bookmarks"] });
+      toast.success(isBookmarked ? "Bookmark removed" : "Bookmarked!");
+    },
+  });
+
+  // Add all MCQs to revision queue
+  const addToRevision = useMutation({
+    mutationFn: async () => {
+      if (!user) { toast.error("Sign in to add to revision"); return; }
+      if (mcqs.length === 0) { toast.info("No MCQs to add"); return; }
+      const cards = mcqs.map((m: any) => ({
+        user_id: user.id,
+        question_id: m.id,
+        next_review: new Date().toISOString().split("T")[0],
+      }));
+      // Upsert to avoid duplicates
+      const { error } = await supabase.from("spaced_cards").upsert(cards, { onConflict: "user_id,question_id", ignoreDuplicates: true });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success(`${mcqs.length} question${mcqs.length !== 1 ? "s" : ""} added to revision queue`);
+    },
+    onError: () => {
+      toast.error("Failed to add to revision");
+    },
+  });
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -107,15 +170,39 @@ const IssuePage = () => {
     ? formatTimeSince(new Date(article.ingested_at))
     : "";
 
+  const primaryTopic = tags[0] ?? "Current Affairs";
+
   return (
-    <div className="container max-w-4xl py-4 sm:py-6 px-4 pb-24 lg:pb-6">
-      {/* Back button */}
-      <Button variant="ghost" size="icon" className="h-8 w-8 mb-3" onClick={() => navigate(-1)}>
-        <ArrowLeft className="h-4 w-4" />
-      </Button>
+    <div className="container max-w-4xl py-4 sm:py-6 px-4 pb-28 lg:pb-6">
+      {/* Back + Actions bar */}
+      <div className="flex items-center justify-between mb-3">
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate(-1)}>
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className={`h-8 w-8 ${isBookmarked ? "text-primary" : "text-muted-foreground"}`}
+            onClick={() => toggleBookmark.mutate()}
+            aria-label={isBookmarked ? "Remove bookmark" : "Bookmark"}
+          >
+            {isBookmarked ? <BookmarkCheck className="h-4 w-4" /> : <Bookmark className="h-4 w-4" />}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground"
+            onClick={() => addToRevision.mutate()}
+            aria-label="Add to revision"
+          >
+            <RotateCcw className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
 
       {/* Header: GS Papers + Syllabus Tags + Source + Time */}
-      <div className="mb-5">
+      <div className="mb-4">
         <div className="flex items-center gap-1.5 mb-2.5 flex-wrap">
           {gsPapers.map((paper: string) => (
             <Badge key={paper} className={`${gsPaperColorClass(paper)} border text-xs font-semibold`}>{paper}</Badge>
@@ -124,35 +211,35 @@ const IssuePage = () => {
             <Badge key={tag} className={`${tagColorClass(tag)} border text-xs`}>{tag}</Badge>
           ))}
         </div>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground text-xs sm:text-sm mb-2">
+        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground leading-tight mb-2">
+          {article.title}
+        </h1>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground text-xs sm:text-sm">
           <span>Source: {article.source_name}</span>
           {timeSince && <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> {timeSince}</span>}
         </div>
-        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground leading-tight">
-          {article.title}
-        </h1>
       </div>
 
-      {/* Divider */}
-      <div className="border-t-2 border-accent/30 mb-5" />
-
-      {/* Prelims & Mains keywords strip */}
+      {/* Prelims & Mains strip — prominent, right after title */}
       {(prelimsKeywords.length > 0 || tags.length > 0) && (
-        <div className="glass-card rounded-xl p-4 mb-4 space-y-2">
+        <div className="rounded-xl p-4 mb-5 space-y-2 border-l-4 border-accent bg-accent/5">
           {prelimsKeywords.length > 0 && (
             <div>
-              <span className="text-xs font-semibold text-accent uppercase tracking-wide">For Prelims: </span>
-              <span className="text-sm text-foreground">{prelimsKeywords.join(", ")}</span>
+              <span className="text-xs font-bold text-accent uppercase tracking-wide">For Prelims: </span>
+              <span className="text-sm font-medium text-foreground">{prelimsKeywords.join(", ")}</span>
             </div>
           )}
-          {tags.length > 0 && (
+          {(mainsAngle || tags.length > 0) && (
             <div>
-              <span className="text-xs font-semibold text-accent uppercase tracking-wide">For Mains: </span>
-              <span className="text-sm text-foreground">{tags.join(", ")}</span>
+              <span className="text-xs font-bold text-accent uppercase tracking-wide">For Mains: </span>
+              <span className="text-sm font-medium text-foreground">{tags.join(", ")}</span>
             </div>
           )}
         </div>
       )}
+
+      {/* Divider */}
+      <div className="border-t-2 border-accent/30 mb-5" />
 
       {/* Why in News */}
       {article.summary && (
@@ -161,7 +248,7 @@ const IssuePage = () => {
         </Section>
       )}
 
-      {/* Key Analysis (detailed_analysis sections) */}
+      {/* Key Analysis */}
       {detailedAnalysis && detailedAnalysis.length > 0 && (
         <Section icon={FileText} title="Key Analysis">
           <div className="space-y-4">
@@ -205,6 +292,23 @@ const IssuePage = () => {
             {mcqs.map((m: any, i: number) => (
               <MCQCard key={m.id} mcq={m} index={i} />
             ))}
+          </div>
+
+          {/* Practice more CTA */}
+          <div className="mt-4 flex flex-col sm:flex-row gap-2">
+            <Link to="/practice" className="flex-1">
+              <Button variant="outline" className="w-full h-10 gap-2 text-sm">
+                <Target className="h-4 w-4" /> Practice more {primaryTopic} MCQs
+              </Button>
+            </Link>
+            <Button
+              variant="outline"
+              className="flex-1 h-10 gap-2 text-sm"
+              onClick={() => addToRevision.mutate()}
+              disabled={addToRevision.isPending}
+            >
+              <RotateCcw className="h-4 w-4" /> Add to revision queue
+            </Button>
           </div>
         </Section>
       )}

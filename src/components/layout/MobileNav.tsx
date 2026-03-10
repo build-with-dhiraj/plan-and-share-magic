@@ -7,11 +7,11 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 const NAV_ITEMS = [
   { label: "Today", path: "/", icon: Newspaper },
   { label: "Practice", path: "/practice", icon: Target },
+  { label: "Revise", path: "/revision", icon: RotateCcw },
   { label: "Syllabus", path: "/syllabus", icon: BookOpen },
 ];
 
 const MORE_ITEMS = [
-  { label: "Revise", path: "/revision", icon: RotateCcw },
   { label: "Search", path: "/search", icon: Search },
   { label: "Saved", path: "/saved", icon: Bookmark },
   { label: "Dashboard", path: "/dashboard", icon: Flame },

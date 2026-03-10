@@ -5,24 +5,67 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, ArrowLeft, Target, ChevronRight } from "lucide-react";
+import { Loader2, ArrowLeft, Target, ChevronRight, ChevronDown } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { GsTag } from "@/components/issues/IssueCard";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
 
-const GS_TOPIC_DEFS = [
-  { name: "Polity & Governance", slug: "polity" as GsTag, dbTag: "Polity", keywords: ["polity", "governance"] },
-  { name: "Economy", slug: "economy" as GsTag, dbTag: "Economy", keywords: ["economy"] },
-  { name: "Environment & Ecology", slug: "environment" as GsTag, dbTag: "Environment", keywords: ["environment", "ecology", "climate"] },
-  { name: "International Relations", slug: "ir" as GsTag, dbTag: "IR", keywords: ["international", "ir"] },
-  { name: "Science & Technology", slug: "science" as GsTag, dbTag: "Science", keywords: ["science", "tech"] },
-  { name: "Ethics & Integrity", slug: "ethics" as GsTag, dbTag: "Ethics", keywords: ["ethics"] },
-  { name: "Indian History", slug: "history" as GsTag, dbTag: "History", keywords: ["history", "culture"] },
-  { name: "Geography", slug: "geography" as GsTag, dbTag: "Geography", keywords: ["geography"] },
-  { name: "Society", slug: "society" as GsTag, dbTag: "Society", keywords: ["society", "social"] },
-  { name: "Essay", slug: "essay" as GsTag, dbTag: "Essay", keywords: ["essay"] },
+// GS Paper → Topics mapping (UPSC structure)
+const GS_PAPERS = [
+  {
+    paper: "GS-1",
+    label: "GS Paper I",
+    subtitle: "History, Society & Geography",
+    colorClass: "gs-tag-history",
+    topics: [
+      { name: "Indian History", slug: "history" as GsTag, dbTag: "History", keywords: ["history", "culture"] },
+      { name: "Society", slug: "society" as GsTag, dbTag: "Society", keywords: ["society", "social"] },
+      { name: "Geography", slug: "geography" as GsTag, dbTag: "Geography", keywords: ["geography"] },
+    ],
+  },
+  {
+    paper: "GS-2",
+    label: "GS Paper II",
+    subtitle: "Polity, Governance & IR",
+    colorClass: "gs-tag-polity",
+    topics: [
+      { name: "Polity & Governance", slug: "polity" as GsTag, dbTag: "Polity", keywords: ["polity", "governance"] },
+      { name: "International Relations", slug: "ir" as GsTag, dbTag: "IR", keywords: ["international", "ir"] },
+    ],
+  },
+  {
+    paper: "GS-3",
+    label: "GS Paper III",
+    subtitle: "Economy, S&T & Environment",
+    colorClass: "gs-tag-economy",
+    topics: [
+      { name: "Economy", slug: "economy" as GsTag, dbTag: "Economy", keywords: ["economy"] },
+      { name: "Science & Technology", slug: "science" as GsTag, dbTag: "Science", keywords: ["science", "tech"] },
+      { name: "Environment & Ecology", slug: "environment" as GsTag, dbTag: "Environment", keywords: ["environment", "ecology", "climate"] },
+    ],
+  },
+  {
+    paper: "GS-4",
+    label: "GS Paper IV",
+    subtitle: "Ethics, Integrity & Aptitude",
+    colorClass: "gs-tag-ethics",
+    topics: [
+      { name: "Ethics & Integrity", slug: "ethics" as GsTag, dbTag: "Ethics", keywords: ["ethics"] },
+    ],
+  },
+  {
+    paper: "Essay",
+    label: "Essay",
+    subtitle: "Essay Paper",
+    colorClass: "gs-tag-essay",
+    topics: [
+      { name: "Essay", slug: "essay" as GsTag, dbTag: "Essay", keywords: ["essay"] },
+    ],
+  },
 ] as const;
 
-type TopicDef = (typeof GS_TOPIC_DEFS)[number];
+type TopicDef = (typeof GS_PAPERS)[number]["topics"][number];
 
 interface TopicArticle {
   id: string;
@@ -54,12 +97,10 @@ const SyllabusPage = () => {
     },
   });
 
-  // Fetch articles for the selected topic
   const { data: topicArticles = [], isLoading: articlesLoading } = useQuery({
     queryKey: ["syllabus-articles", selectedTopic?.slug],
     queryFn: async () => {
       if (!selectedTopic) return [];
-      // Use ilike + or to match any of the topic's keywords in syllabus_tags
       const { data, error } = await supabase
         .from("articles")
         .select("id, title, summary, source_name, published_at")
@@ -67,21 +108,20 @@ const SyllabusPage = () => {
         .contains("syllabus_tags", [selectedTopic.dbTag])
         .order("published_at", { ascending: false })
         .limit(20);
-
       if (error || !data) return [];
       return data as TopicArticle[];
     },
     enabled: !!selectedTopic,
   });
 
-  const topics = GS_TOPIC_DEFS.map((topic) => {
-    const count = topic.keywords.reduce((sum, kw) => {
-      return sum + Object.entries(tagCounts).reduce((s, [k, v]) => k.includes(kw) ? s + v : s, 0);
-    }, 0);
-    return { ...topic, issueCount: count };
-  });
+  // Helper to get count for a topic
+  const getTopicCount = (topic: TopicDef) =>
+    topic.keywords.reduce((sum, kw) =>
+      sum + Object.entries(tagCounts).reduce((s, [k, v]) => k.includes(kw) ? s + v : s, 0), 0);
 
-  const maxCount = Math.max(...topics.map((t) => t.issueCount), 1);
+  // Get total count per GS paper
+  const getPaperCount = (topics: readonly TopicDef[]) =>
+    topics.reduce((sum, t) => sum + getTopicCount(t), 0);
 
   return (
     <div className="container max-w-4xl py-4 sm:py-6 px-4 pb-24 lg:pb-6">
@@ -93,14 +133,8 @@ const SyllabusPage = () => {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
           >
-            {/* Header */}
             <div className="flex items-center gap-3 mb-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 shrink-0"
-                onClick={() => setSelectedTopic(null)}
-              >
+              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setSelectedTopic(null)}>
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               <div className="flex-1">
@@ -114,14 +148,12 @@ const SyllabusPage = () => {
               </div>
             </div>
 
-            {/* Practice this topic button */}
-            <Link to={`/practice`}>
+            <Link to="/practice">
               <Button variant="outline" className="w-full mb-4 h-10 gap-2 text-sm">
                 <Target className="h-4 w-4" /> Practice {selectedTopic.name} MCQs
               </Button>
             </Link>
 
-            {/* Articles list */}
             {articlesLoading ? (
               <div className="flex items-center justify-center py-16">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -142,20 +174,13 @@ const SyllabusPage = () => {
                         {article.title}
                       </h3>
                       {article.summary && (
-                        <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 mb-2">
-                          {article.summary}
-                        </p>
+                        <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 mb-2">{article.summary}</p>
                       )}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                           {article.source_name && <span>{article.source_name}</span>}
                           {article.published_at && (
-                            <span>
-                              {new Date(article.published_at).toLocaleDateString("en-IN", {
-                                day: "numeric",
-                                month: "short",
-                              })}
-                            </span>
+                            <span>{new Date(article.published_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</span>
                           )}
                         </div>
                         <ChevronRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-accent transition-colors" />
@@ -168,14 +193,14 @@ const SyllabusPage = () => {
           </motion.div>
         ) : (
           <motion.div
-            key="topic-grid"
+            key="gs-papers"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0, x: -20 }}
           >
             <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight mb-1">Syllabus Topics</h1>
             <p className="text-xs sm:text-sm text-muted-foreground mb-5">
-              Browse current affairs mapped to UPSC GS topics
+              Browse current affairs mapped to UPSC GS papers & topics
             </p>
 
             {isLoading ? (
@@ -183,31 +208,50 @@ const SyllabusPage = () => {
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                {topics.map((topic) => (
-                  <motion.div
-                    key={topic.slug}
-                    className="glass-card rounded-xl p-4 sm:p-5 cursor-pointer hover:shadow-md transition-shadow active:scale-[0.97]"
-                    whileHover={{ scale: 1.01 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => topic.issueCount > 0 && setSelectedTopic(topic)}
-                    style={{ opacity: topic.issueCount === 0 ? 0.5 : 1 }}
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <SyllabusTagChip tag={topic.slug} />
-                      <span className="text-xs text-muted-foreground">{topic.issueCount} articles</span>
-                    </div>
-                    <h3 className="font-semibold text-foreground text-xs sm:text-sm mb-2">{topic.name}</h3>
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>Coverage</span>
-                        <span>{topic.issueCount > 0 ? Math.round((topic.issueCount / maxCount) * 100) : 0}%</span>
-                      </div>
-                      <Progress value={topic.issueCount > 0 ? (topic.issueCount / maxCount) * 100 : 0} className="h-1.5" />
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
+              <Accordion type="multiple" defaultValue={["GS-1", "GS-2", "GS-3", "GS-4"]} className="space-y-3">
+                {GS_PAPERS.map((gs) => {
+                  const paperCount = getPaperCount(gs.topics);
+                  return (
+                    <AccordionItem key={gs.paper} value={gs.paper} className="border-none">
+                      <AccordionTrigger className="glass-card rounded-xl px-4 py-3 hover:no-underline hover:shadow-md transition-shadow [&[data-state=open]]:rounded-b-none">
+                        <div className="flex items-center gap-3 flex-1 text-left">
+                          <Badge className={`${gs.colorClass} border text-xs font-bold px-2.5 py-1`}>
+                            {gs.paper}
+                          </Badge>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-foreground">{gs.label}</p>
+                            <p className="text-xs text-muted-foreground">{gs.subtitle}</p>
+                          </div>
+                          <span className="text-xs text-muted-foreground shrink-0">{paperCount} articles</span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="glass-card rounded-b-xl border-t border-border px-3 pt-3 pb-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          {gs.topics.map((topic) => {
+                            const count = getTopicCount(topic);
+                            return (
+                              <motion.div
+                                key={topic.slug}
+                                className="flex items-center gap-3 p-3 rounded-lg cursor-pointer hover:bg-muted/60 transition-colors active:scale-[0.98]"
+                                whileTap={{ scale: 0.98 }}
+                                onClick={() => count > 0 && setSelectedTopic(topic)}
+                                style={{ opacity: count === 0 ? 0.5 : 1 }}
+                              >
+                                <SyllabusTagChip tag={topic.slug} />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-foreground">{topic.name}</p>
+                                  <p className="text-xs text-muted-foreground">{count} articles</p>
+                                </div>
+                                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                              </motion.div>
+                            );
+                          })}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  );
+                })}
+              </Accordion>
             )}
           </motion.div>
         )}
