@@ -32,7 +32,6 @@ interface IssueCardProps {
   sourceCount: number;
   confidence: number | null;
   staticAnchor?: string;
-  isHero?: boolean;
 }
 
 const GS_PAPER_COLORS: Record<string, string> = {

@@ -200,7 +200,7 @@ const Index = () => {
         </>
       ) : (
         <motion.div className="space-y-3 sm:space-y-4" variants={container} initial="hidden" animate="show">
-          {markHero(untied.length > 0 ? untied : articles).map((issue) => (
+          {(untied.length > 0 ? untied : articles).map((issue) => (
             <motion.div key={issue.id} variants={item}>
               <IssueCard {...issue} />
             </motion.div>
