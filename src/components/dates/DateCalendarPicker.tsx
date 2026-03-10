@@ -1,6 +1,6 @@
 import { Calendar } from "@/components/ui/calendar";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface DateCalendarPickerProps {
@@ -44,15 +44,15 @@ export function DateCalendarPicker({ selectedDate, onDateSelect, open, onOpenCha
     );
   }
 
-  // Desktop: use a controlled popover (no trigger, managed by parent)
+  // Desktop: use a Dialog (no trigger needed — parent controls open state)
   return (
-    <Popover open={open} onOpenChange={onOpenChange}>
-      <PopoverTrigger asChild>
-        <span /> {/* Hidden trigger — parent controls open state */}
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
-        {calendarContent}
-      </PopoverContent>
-    </Popover>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-fit p-4">
+        <DialogHeader>
+          <DialogTitle className="text-base">Jump to Date</DialogTitle>
+        </DialogHeader>
+        <div className="flex justify-center">{calendarContent}</div>
+      </DialogContent>
+    </Dialog>
   );
 }
