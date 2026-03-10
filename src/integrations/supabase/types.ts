@@ -16,10 +16,10 @@ export type Database = {
     Tables: {
       articles: {
         Row: {
-          content: string | null
           conclusion: string | null
-          detailed_analysis: Json | null
+          content: string | null
           depth_tier: string | null
+          detailed_analysis: Json | null
           faqs: Json | null
           gs_papers: string[] | null
           id: string
@@ -38,10 +38,10 @@ export type Database = {
           upsc_relevance: number | null
         }
         Insert: {
-          content?: string | null
           conclusion?: string | null
-          detailed_analysis?: Json | null
+          content?: string | null
           depth_tier?: string | null
+          detailed_analysis?: Json | null
           faqs?: Json | null
           gs_papers?: string[] | null
           id?: string
@@ -60,10 +60,10 @@ export type Database = {
           upsc_relevance?: number | null
         }
         Update: {
-          content?: string | null
           conclusion?: string | null
-          detailed_analysis?: Json | null
+          content?: string | null
           depth_tier?: string | null
+          detailed_analysis?: Json | null
           faqs?: Json | null
           gs_papers?: string[] | null
           id?: string
