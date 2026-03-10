@@ -189,7 +189,7 @@ const Index = () => {
           {untied.length > 0 && (
             <div className="mb-6">
               <motion.div className="space-y-3 sm:space-y-4" variants={container} initial="hidden" animate="show">
-                {markHero(untied).map((issue) => (
+                {untied.map((issue) => (
                   <motion.div key={issue.id} variants={item}>
                     <IssueCard {...issue} />
                   </motion.div>
