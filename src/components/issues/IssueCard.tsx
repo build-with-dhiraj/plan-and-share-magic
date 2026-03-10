@@ -32,7 +32,6 @@ interface IssueCardProps {
   sourceCount: number;
   confidence: number | null;
   staticAnchor?: string;
-  isHero?: boolean;
 }
 
 const GS_PAPER_COLORS: Record<string, string> = {
@@ -51,7 +50,6 @@ export function IssueCard({
   sourceCount,
   confidence,
   staticAnchor,
-  isHero,
 }: IssueCardProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -94,7 +92,7 @@ export function IssueCard({
   return (
     <Link to={`/issue/${id}`}>
       <motion.div
-        className={`glass-card rounded-xl overflow-hidden cursor-pointer group transition-shadow hover:shadow-lg ${isHero ? "p-5 sm:p-6" : "p-4"}`}
+        className="glass-card rounded-xl overflow-hidden cursor-pointer group transition-shadow hover:shadow-lg p-4"
         whileHover={{ scale: 1.01 }}
         whileTap={{ scale: 0.97 }}
       >
@@ -114,7 +112,7 @@ export function IssueCard({
         </div>
 
         <h3
-          className={`font-semibold text-foreground leading-snug mb-1.5 ${isHero ? "text-lg sm:text-xl" : "text-[15px] sm:text-base"}`}
+          className="font-semibold text-foreground leading-snug mb-1.5 text-[15px] sm:text-base"
         >
           {title}
         </h3>

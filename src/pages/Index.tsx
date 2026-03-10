@@ -79,7 +79,7 @@ const Index = () => {
   );
 
   const untied = articles.filter((a) => !a.depthTier);
-  const markHero = (list: typeof articles) => list.map((a, i) => ({ ...a, isHero: i === 0 }));
+  
   const hasTieredContent = TIER_ORDER.some((t) => grouped[t].length > 0);
 
   return (
@@ -169,7 +169,7 @@ const Index = () => {
       ) : hasTieredContent ? (
         <>
           {TIER_ORDER.map((tier) => {
-            const tierArticles = markHero(grouped[tier]);
+            const tierArticles = grouped[tier];
             if (tierArticles.length === 0) return null;
             return (
               <div key={tier} className="mb-6">
@@ -189,7 +189,7 @@ const Index = () => {
           {untied.length > 0 && (
             <div className="mb-6">
               <motion.div className="space-y-3 sm:space-y-4" variants={container} initial="hidden" animate="show">
-                {markHero(untied).map((issue) => (
+                {untied.map((issue) => (
                   <motion.div key={issue.id} variants={item}>
                     <IssueCard {...issue} />
                   </motion.div>
@@ -200,7 +200,7 @@ const Index = () => {
         </>
       ) : (
         <motion.div className="space-y-3 sm:space-y-4" variants={container} initial="hidden" animate="show">
-          {markHero(untied.length > 0 ? untied : articles).map((issue) => (
+          {(untied.length > 0 ? untied : articles).map((issue) => (
             <motion.div key={issue.id} variants={item}>
               <IssueCard {...issue} />
             </motion.div>
