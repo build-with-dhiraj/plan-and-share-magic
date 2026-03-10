@@ -113,7 +113,7 @@ export function IssueCard({
         </div>
 
         <h3
-          className={`font-semibold text-foreground leading-snug mb-1.5 ${isHero ? "text-lg sm:text-xl" : "text-[15px] sm:text-base"}`}
+          className="font-semibold text-foreground leading-snug mb-1.5 text-[15px] sm:text-base"
         >
           {title}
         </h3>
