@@ -93,7 +93,7 @@ export function IssueCard({
   return (
     <Link to={`/issue/${id}`}>
       <motion.div
-        className={`glass-card rounded-xl overflow-hidden cursor-pointer group transition-shadow hover:shadow-lg ${isHero ? "p-5 sm:p-6" : "p-4"}`}
+        className="glass-card rounded-xl overflow-hidden cursor-pointer group transition-shadow hover:shadow-lg p-4"
         whileHover={{ scale: 1.01 }}
         whileTap={{ scale: 0.97 }}
       >
