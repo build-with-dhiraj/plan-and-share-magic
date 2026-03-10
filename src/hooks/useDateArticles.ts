@@ -67,6 +67,41 @@ function filterByRelevance(data: any[]): any[] {
   });
 }
 
+/**
+ * Enforce source diversity: no single source should dominate the feed.
+ * - Max 5 articles per source
+ * - Interleave sources so the feed isn't a wall of one newspaper
+ */
+function enforceSourceDiversity(articles: any[], maxPerSource = 5): any[] {
+  const bySource: Record<string, any[]> = {};
+  for (const a of articles) {
+    const src = a.source_name || "unknown";
+    if (!bySource[src]) bySource[src] = [];
+    bySource[src].push(a);
+  }
+
+  // Round-robin interleave: take 1 from each source in rotation
+  const result: any[] = [];
+  const sourceKeys = Object.keys(bySource);
+  const pointers: Record<string, number> = {};
+  sourceKeys.forEach((k) => (pointers[k] = 0));
+
+  let added = true;
+  while (added) {
+    added = false;
+    for (const key of sourceKeys) {
+      const idx = pointers[key];
+      if (idx < bySource[key].length && idx < maxPerSource) {
+        result.push(bySource[key][idx]);
+        pointers[key] = idx + 1;
+        added = true;
+      }
+    }
+  }
+
+  return result;
+}
+
 async function fetchArticlesForToday(): Promise<TieredArticle[]> {
   // Rolling 36-hour window (covers late-night articles from yesterday)
   const cutoff = new Date();
@@ -95,7 +130,8 @@ async function fetchArticlesForToday(): Promise<TieredArticle[]> {
   }
 
   const filtered = filterByRelevance(data ?? []);
-  return filtered.slice(0, 15).map(mapArticle);
+  const diverse = enforceSourceDiversity(filtered);
+  return diverse.slice(0, 15).map(mapArticle);
 }
 
 async function fetchArticlesForDate(dateString: string): Promise<TieredArticle[]> {
@@ -115,7 +151,8 @@ async function fetchArticlesForDate(dateString: string): Promise<TieredArticle[]
     .limit(30);
 
   const filtered = filterByRelevance(data ?? []);
-  return filtered.slice(0, 15).map(mapArticle);
+  const diverse = enforceSourceDiversity(filtered);
+  return diverse.slice(0, 15).map(mapArticle);
 }
 
 /**
