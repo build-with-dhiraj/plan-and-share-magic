@@ -17,6 +17,7 @@ const SYLLABUS_TOPICS = [
   "Society",
   "Ethics",
   "Art & Culture",
+  "Essay",
 ];
 
 // Junk article detection — reject error pages the scraper picked up
@@ -297,8 +298,8 @@ IMPORTANT: All content must be directly derived from the article. No hallucinati
                       },
                       gs_papers: {
                         type: "array",
-                        items: { type: "string", enum: ["GS-1", "GS-2", "GS-3", "GS-4"] },
-                        description: "Applicable GS papers",
+                        items: { type: "string", enum: ["GS-1", "GS-2", "GS-3", "GS-4", "Essay"] },
+                        description: "Applicable GS papers. Include 'Essay' when the topic has broad socio-economic, ethical, or philosophical dimensions suitable for the UPSC Essay paper.",
                       },
                       syllabus_tags: { type: "array", items: { type: "string" }, description: "UPSC syllabus topics" },
                       facts: {
