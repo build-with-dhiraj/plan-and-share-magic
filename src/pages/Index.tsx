@@ -6,7 +6,7 @@ import { CheckCircle, Loader2, ArrowRight, ChevronLeft, ChevronRight } from "luc
 import { format, parseISO, addDays, subDays, isToday as isTodayFn } from "date-fns";
 import { DateStrip } from "@/components/dates/DateStrip";
 import { DateCalendarPicker } from "@/components/dates/DateCalendarPicker";
-import { useDateArticles, TIER_ORDER, TIER_LABELS } from "@/hooks/useDateArticles";
+import { useDateArticles } from "@/hooks/useDateArticles";
 
 const container = {
   hidden: { opacity: 0 },
@@ -69,18 +69,18 @@ const Index = () => {
   const nextDateStr = format(nextDate, "yyyy-MM-dd");
   const canGoNext = nextDate <= new Date();
 
-  // Group articles by tier
-  const grouped = TIER_ORDER.reduce(
-    (acc, tier) => {
-      acc[tier] = articles.filter((a) => a.depthTier === tier);
-      return acc;
-    },
-    {} as Record<string, typeof articles>,
-  );
+  // Sort articles by tier priority (high-relevance first), then by recency
+  const TIER_PRIORITY: Record<string, number> = {
+    deep_analysis:   0,
+    important_facts: 1,
+    rapid_fire:      2,
+  };
 
-  const untied = articles.filter((a) => !a.depthTier);
-  
-  const hasTieredContent = TIER_ORDER.some((t) => grouped[t].length > 0);
+  const sortedArticles = [...articles].sort((a, b) => {
+    const pa = TIER_PRIORITY[a.depthTier ?? ""] ?? 3;
+    const pb = TIER_PRIORITY[b.depthTier ?? ""] ?? 3;
+    return pa - pb;
+  });
 
   return (
     <div className="container max-w-3xl py-4 sm:py-6 px-4 pb-24 lg:pb-6">
@@ -166,41 +166,9 @@ const Index = () => {
             </>
           )}
         </div>
-      ) : hasTieredContent ? (
-        <>
-          {TIER_ORDER.map((tier) => {
-            const tierArticles = grouped[tier];
-            if (tierArticles.length === 0) return null;
-            return (
-              <div key={tier} className="mb-6">
-                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                  {TIER_LABELS[tier]}
-                </h2>
-                <motion.div className="space-y-3 sm:space-y-4" variants={container} initial="hidden" animate="show">
-                  {tierArticles.map((issue) => (
-                    <motion.div key={issue.id} variants={item}>
-                      <IssueCard {...issue} />
-                    </motion.div>
-                  ))}
-                </motion.div>
-              </div>
-            );
-          })}
-          {untied.length > 0 && (
-            <div className="mb-6">
-              <motion.div className="space-y-3 sm:space-y-4" variants={container} initial="hidden" animate="show">
-                {untied.map((issue) => (
-                  <motion.div key={issue.id} variants={item}>
-                    <IssueCard {...issue} />
-                  </motion.div>
-                ))}
-              </motion.div>
-            </div>
-          )}
-        </>
       ) : (
         <motion.div className="space-y-3 sm:space-y-4" variants={container} initial="hidden" animate="show">
-          {(untied.length > 0 ? untied : articles).map((issue) => (
+          {sortedArticles.map((issue) => (
             <motion.div key={issue.id} variants={item}>
               <IssueCard {...issue} />
             </motion.div>
