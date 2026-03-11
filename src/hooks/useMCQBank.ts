@@ -4,6 +4,7 @@ import { sampleMCQs, type MCQ } from "@/data/sampleMCQs";
 /**
  * Fetch MCQs from the Cloud mcq_bank table.
  * Falls back to local sampleMCQs if no DB results or user is unauthenticated.
+ * Excludes MCQs derived from Layer C (coaching) articles.
  */
 export async function fetchMCQs(options?: {
   topic?: string | null;
@@ -13,9 +14,10 @@ export async function fetchMCQs(options?: {
   const { topic, limit = 50, dailyEligible } = options || {};
 
   try {
+    // Left join with articles to get layer — keeps MCQs without article_id
     let query = supabase
       .from("mcq_bank")
-      .select("*")
+      .select("*, articles(layer)")
       .order("created_at", { ascending: false })
       .limit(limit);
 
@@ -33,8 +35,11 @@ export async function fetchMCQs(options?: {
       return filterSample(topic);
     }
 
+    // Exclude MCQs derived from Layer C (coaching) articles
+    const filtered = data.filter((r: any) => !r.articles || r.articles.layer !== "C");
+
     // Map DB rows to MCQ interface
-    return data.map((row: any) => ({
+    return filtered.map((row: any) => ({
       id: row.id,
       question: row.question,
       statements: row.statements || undefined,
@@ -55,6 +60,7 @@ export async function fetchMCQs(options?: {
 /**
  * Fetch MCQs generated from today's processed articles.
  * Fallback cascade: today → last 3 days → all daily-eligible → sample MCQs.
+ * Excludes MCQs derived from Layer C (coaching) articles.
  */
 export async function fetchTodaysMCQs(limit: number = 20): Promise<MCQ[]> {
   const today = new Date();
@@ -77,11 +83,11 @@ export async function fetchTodaysMCQs(limit: number = 20): Promise<MCQ[]> {
     }));
 
   try {
-    // Try today's article-linked MCQs
+    // Today's article-linked MCQs — inner join excludes Layer C
     const { data, error } = await supabase
       .from("mcq_bank")
-      .select("*")
-      .not("article_id", "is", null)
+      .select("*, articles!inner(layer)")
+      .neq("articles.layer", "C")
       .gte("created_at", todayISO)
       .eq("is_daily_eligible", true)
       .order("created_at", { ascending: false })
@@ -91,13 +97,13 @@ export async function fetchTodaysMCQs(limit: number = 20): Promise<MCQ[]> {
       return mapRows(data);
     }
 
-    // Fallback: last 3 days
+    // Fallback: last 3 days — inner join excludes Layer C
     const threeDaysAgo = new Date();
     threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
     const { data: recentData } = await supabase
       .from("mcq_bank")
-      .select("*")
-      .not("article_id", "is", null)
+      .select("*, articles!inner(layer)")
+      .neq("articles.layer", "C")
       .gte("created_at", threeDaysAgo.toISOString())
       .eq("is_daily_eligible", true)
       .order("created_at", { ascending: false })
@@ -107,7 +113,7 @@ export async function fetchTodaysMCQs(limit: number = 20): Promise<MCQ[]> {
       return mapRows(recentData);
     }
 
-    // Fallback: all daily-eligible
+    // Fallback: all daily-eligible (uses left-join filter in fetchMCQs)
     return fetchMCQs({ dailyEligible: true, limit });
   } catch {
     return fetchMCQs({ dailyEligible: true, limit });
@@ -121,19 +127,23 @@ function filterSample(topic?: string | null): MCQ[] {
 
 /**
  * Get topic counts from the MCQ bank (with fallback to sample data).
+ * Excludes MCQs derived from Layer C (coaching) articles.
  */
 export async function fetchTopicCounts(): Promise<Record<string, number>> {
   try {
     const { data, error } = await supabase
       .from("mcq_bank")
-      .select("topic");
+      .select("topic, articles(layer)");
 
     if (error || !data || data.length === 0) {
       return sampleCounts();
     }
 
+    // Exclude Layer C-derived MCQs from counts
+    const filtered = data.filter((r: any) => !r.articles || r.articles.layer !== "C");
+
     const counts: Record<string, number> = {};
-    for (const row of data) {
+    for (const row of filtered) {
       counts[row.topic] = (counts[row.topic] || 0) + 1;
     }
     // Merge with sample counts so topics without DB data still show

@@ -26,6 +26,18 @@ const JUNK_TITLE_PATTERNS = [
   /^goals$/i, /^partners$/i,
   /^data\s*center$/i, /^documentation$/i,
   /login\s*for\s*members/i, /web\s*site\s*map/i,
+  // ── Coaching product / commercial pages ──
+  /pt\s*365/i, /pt\s*sprint/i,
+  /test\s*series/i, /mock\s*test/i, /practice\s*test/i,
+  /course\s*details?/i, /batch\s*details?/i, /classroom\s*program/i,
+  /enro?l+\s*(now|today)/i, /admission\s*open/i,
+  /buy\s*now/i, /add\s*to\s*cart/i, /pricing/i,
+  /leaderboard/i, /score\s*card/i, /rank\s*list/i,
+  /sprint\s*quiz/i, /economy\s*sprint/i,
+  /current\s*affairs\s*quiz/i,
+  /download\s*(app|pdf|material)/i,
+  /free\s*material/i, /study\s*material/i, /study\s*plan/i,
+  /scholarship\s*test/i, /toppers?\s*(strategy|interview|talk)/i,
 ];
 
 // Generic site titles — when the <title> tag is just the site name, not an article
@@ -94,6 +106,11 @@ function isJunkContent(content: string | null): boolean {
   // Cookie consent / nav pages with very little real content
   if (lower.includes("cookiebot") && content.length < 800) return true;
   if (lower.includes("log in to continue") && content.length < 500) return true;
+  // Coaching product / commercial content
+  if (lower.includes("add to cart") || lower.includes("buy now")) return true;
+  if (lower.includes("enroll now") || lower.includes("enrol now")) return true;
+  if (lower.includes("batch starting") || lower.includes("admission open")) return true;
+  if (/leaderboard.*rank.*points/i.test(content) && content.length < 2000) return true;
   return false;
 }
 
@@ -112,6 +129,16 @@ const NAV_URL_PATTERNS = [
   /\/cpi#/i, /\/cpi\/?$/i, // transparency CPI index page
   /\/news\/all\/?$/i, // listing page itself
   /aboutcookies/i,
+  // ── Coaching product / commercial URLs ──
+  /\/test-series/i, /\/mock-test/i, /\/practice-test/i,
+  /\/course/i, /\/classroom/i, /\/batch/i,
+  /\/pricing/i, /\/enrol/i, /\/cart/i,
+  /\/pt-?365/i, /\/pt-?sprint/i,
+  /\/scholarship/i, /\/toppers/i,
+  /\/leaderboard/i, /\/score-?card/i,
+  /\?filter=.*quiz/i, /\/quiz\/?$/i,
+  /\/download/i, /\/study-material/i, /\/study-plan/i,
+  /\/free-material/i, /\/app-download/i,
 ];
 
 function isNavUrl(url: string): boolean {
@@ -797,6 +824,19 @@ Deno.serve(async (req) => {
         } else if (source.ingest_method === "firecrawl") {
           // ──── LISTING PAGE SCRAPE INGESTION ────
           // Works with native scrape (free) or Firecrawl (premium)
+
+          // ── Phase 3b: Layer C firecrawl sources MUST have url_pattern ──
+          // Without url_pattern, we'd scrape random links → coaching product junk
+          if (source.layer === "C" && !source.url_pattern) {
+            console.warn(
+              `${source.name}: Layer C firecrawl source has no url_pattern — skipping (fail closed)`
+            );
+            errors.push(
+              `${source.name}: Skipped — Layer C firecrawl requires url_pattern`
+            );
+            continue;
+          }
+
           for (const listingUrl of source.feed_urls) {
             try {
               // Step 1: Discover article URLs from the listing page
@@ -808,60 +848,73 @@ Deno.serve(async (req) => {
               );
 
               if (articleUrls.length === 0) {
-                // No links discovered — try scraping the listing page itself as content
-                const pageData = await scrapeArticle(listingUrl, firecrawlKey);
-                if (
-                  pageData?.text &&
-                  pageData.text.length > 200 &&
-                  !isJunkContent(pageData.text)
-                ) {
-                  const pageTitle =
-                    pageData.title || `${source.label} Update`;
-                  if (!isJunkTitle(pageTitle)) {
-                    // Check if already exists
-                    const { data: existing } = await supabase
-                      .from("articles")
-                      .select("id")
-                      .eq("source_url", listingUrl)
-                      .maybeSingle();
-
-                    if (!existing) {
-                      let content = pageData.text;
-                      if (
-                        !source.allow_full_text_storage &&
-                        source.allow_excerpt_only
-                      ) {
-                        content =
-                          content.substring(0, 1500) +
-                          "\n\n[Content truncated — excerpt only per source policy]";
-                      }
-                      const { error } = await supabase
+                // ── Phase 3a: Only Layer A (govt/canonical) may fall back
+                // to scraping the listing page itself as content.
+                // For all other layers, this fallback inserts product/index
+                // pages as "articles" — the root cause of coaching junk.
+                if (source.layer === "A") {
+                  const pageData = await scrapeArticle(listingUrl, firecrawlKey);
+                  if (
+                    pageData?.text &&
+                    pageData.text.length > 200 &&
+                    !isJunkContent(pageData.text)
+                  ) {
+                    const pageTitle =
+                      pageData.title || `${source.label} Update`;
+                    if (!isJunkTitle(pageTitle)) {
+                      const { data: existing } = await supabase
                         .from("articles")
-                        .insert({
-                          source_name: source.name,
-                          source_url: listingUrl,
-                          title: pageTitle,
-                          content,
-                          published_at: new Date().toISOString(),
-                          layer: source.layer,
-                          syllabus_tags: source.default_tags || [],
-                          processed: false,
-                        });
-                      if (!error) {
-                        totalIngested++;
-                        totalScraped++;
-                        sourceStats[source.name].ingested++;
-                        sourceStats[source.name].scraped++;
+                        .select("id")
+                        .eq("source_url", listingUrl)
+                        .maybeSingle();
+
+                      if (!existing) {
+                        let content = pageData.text;
+                        if (
+                          !source.allow_full_text_storage &&
+                          source.allow_excerpt_only
+                        ) {
+                          content =
+                            content.substring(0, 1500) +
+                            "\n\n[Content truncated — excerpt only per source policy]";
+                        }
+                        const { error } = await supabase
+                          .from("articles")
+                          .insert({
+                            source_name: source.name,
+                            source_url: listingUrl,
+                            title: pageTitle,
+                            content,
+                            published_at: null,
+                            layer: source.layer,
+                            syllabus_tags: source.default_tags || [],
+                            processed: false,
+                          });
+                        if (!error) {
+                          totalIngested++;
+                          totalScraped++;
+                          sourceStats[source.name].ingested++;
+                          sourceStats[source.name].scraped++;
+                        }
+                      } else {
+                        totalSkipped++;
                       }
-                    } else {
-                      totalSkipped++;
                     }
+                  } else {
+                    errors.push(
+                      `${source.name}: No articles found at ${listingUrl}`
+                    );
+                    sourceError = `No articles found at ${listingUrl}`;
                   }
                 } else {
-                  errors.push(
-                    `${source.name}: No articles found at ${listingUrl}`
+                  // Non-Layer-A: just log the miss, do NOT scrape listing page
+                  console.warn(
+                    `${source.name}: 0 article links at ${listingUrl} — skipping (listing-page fallback disabled for layer ${source.layer})`
                   );
-                  sourceError = `No articles found at ${listingUrl}`;
+                  errors.push(
+                    `${source.name}: No article links found at ${listingUrl} (layer ${source.layer}, no fallback)`
+                  );
+                  sourceError = `No article links found at ${listingUrl}`;
                 }
                 continue;
               }
@@ -946,7 +999,7 @@ Deno.serve(async (req) => {
                   source_url: articleUrl,
                   title: articleTitle,
                   content,
-                  published_at: new Date().toISOString(),
+                  published_at: null, // Phase 3d: don't fake dates — null is honest
                   layer: source.layer,
                   syllabus_tags: source.default_tags || [],
                   processed: false,

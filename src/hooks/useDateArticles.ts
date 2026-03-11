@@ -113,6 +113,7 @@ async function fetchArticlesForToday(): Promise<TieredArticle[]> {
     .select(SELECT_FIELDS)
     .eq("processed", true)
     .not("summary", "is", null)
+    .not("layer", "eq", "C")
     .gte("published_at", cutoffISO)
     .order("published_at", { ascending: false })
     .limit(30);
@@ -124,6 +125,7 @@ async function fetchArticlesForToday(): Promise<TieredArticle[]> {
       .select(SELECT_FIELDS)
       .eq("processed", true)
       .not("summary", "is", null)
+      .not("layer", "eq", "C")
       .order("published_at", { ascending: false })
       .limit(30);
     data = fallback.data;
@@ -145,6 +147,7 @@ async function fetchArticlesForDate(dateString: string): Promise<TieredArticle[]
     .select(SELECT_FIELDS)
     .eq("processed", true)
     .not("summary", "is", null)
+    .not("layer", "eq", "C")
     .gte("published_at", dayStart)
     .lt("published_at", dayEnd)
     .order("published_at", { ascending: false })

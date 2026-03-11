@@ -82,6 +82,7 @@ Deno.serve(async (req) => {
       .from("articles")
       .select("*")
       .eq("processed", false)
+      .not("layer", "eq", "C")
       .order("ingested_at", { ascending: true })
       .limit(batchSize);
 

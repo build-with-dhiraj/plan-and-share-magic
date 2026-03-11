@@ -84,7 +84,8 @@ const SyllabusPage = () => {
       const { data } = await supabase
         .from("articles")
         .select("syllabus_tags")
-        .eq("processed", true);
+        .eq("processed", true)
+        .not("layer", "eq", "C");
 
       const counts: Record<string, number> = {};
       for (const row of data ?? []) {
@@ -105,6 +106,7 @@ const SyllabusPage = () => {
         .from("articles")
         .select("id, title, summary, source_name, published_at")
         .eq("processed", true)
+        .not("layer", "eq", "C")
         .contains("syllabus_tags", [selectedTopic.dbTag])
         .order("published_at", { ascending: false })
         .limit(20);

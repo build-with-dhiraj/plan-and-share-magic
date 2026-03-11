@@ -117,18 +117,22 @@ const SearchPage = () => {
     queryFn: async () => {
       let q = supabase.from("articles").select("id, title, summary, source_name, syllabus_tags, layer, published_at").eq("processed", true).not("summary", "is", null).order("published_at", { ascending: false }).limit(50);
       if (debouncedQuery) q = q.or(`title.ilike.%${debouncedQuery}%,summary.ilike.%${debouncedQuery}%`);
-      if (selectedLayers.length) q = q.in("layer", selectedLayers);
+      if (selectedLayers.length) {
+        q = q.in("layer", selectedLayers);
+      } else {
+        q = q.not("layer", "eq", "C"); // default: exclude coaching
+      }
       const { data } = await q;
       return data ?? [];
     },
     enabled: contentType === "all" || contentType === "articles",
   });
 
-  // ── Fetch facts ────────────────────────────────────────────────────
+  // ── Fetch facts (exclude Layer C-derived via inner join) ───────────
   const { data: facts = [], isLoading: loadingFacts } = useQuery({
     queryKey: ["search-facts", debouncedQuery],
     queryFn: async () => {
-      let q = supabase.from("facts").select("id, fact_text, source_url, syllabus_tags, confidence, verified").order("created_at", { ascending: false }).limit(50);
+      let q = supabase.from("facts").select("id, fact_text, source_url, syllabus_tags, confidence, verified, articles!inner(layer)").neq("articles.layer", "C").order("created_at", { ascending: false }).limit(50);
       if (debouncedQuery) q = q.ilike("fact_text", `%${debouncedQuery}%`);
       const { data } = await q;
       return data ?? [];
@@ -136,11 +140,11 @@ const SearchPage = () => {
     enabled: contentType === "all" || contentType === "facts",
   });
 
-  // ── Fetch MCQs ─────────────────────────────────────────────────────
+  // ── Fetch MCQs (exclude Layer C-derived via inner join) ────────────
   const { data: mcqs = [], isLoading: loadingMCQs } = useQuery({
     queryKey: ["search-mcqs", debouncedQuery],
     queryFn: async () => {
-      let q = supabase.from("mcq_bank").select("id, question, topic, difficulty, syllabus_tags, source, explanation").order("created_at", { ascending: false }).limit(50);
+      let q = supabase.from("mcq_bank").select("id, question, topic, difficulty, syllabus_tags, source, explanation, articles!inner(layer)").neq("articles.layer", "C").order("created_at", { ascending: false }).limit(50);
       if (debouncedQuery) q = q.or(`question.ilike.%${debouncedQuery}%,topic.ilike.%${debouncedQuery}%,explanation.ilike.%${debouncedQuery}%`);
       const { data } = await q;
       return data ?? [];
