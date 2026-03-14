@@ -11,7 +11,6 @@ const INITIAL_INTERVAL = 1;
 interface SpacedCard {
   id: string;
   question_id: string;
-  question_source: string;
   ease_factor: number;
   interval_days: number;
   repetitions: number;
