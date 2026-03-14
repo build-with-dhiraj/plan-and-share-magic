@@ -89,7 +89,7 @@ const Index = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
-              {isToday ? "Today's Brief" : "Daily Brief"}
+              Current Affairs
             </h1>
             <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
               {displayDate.toLocaleDateString("en-IN", {

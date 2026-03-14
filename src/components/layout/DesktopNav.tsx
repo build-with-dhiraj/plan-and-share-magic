@@ -8,7 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 const NAV_ITEMS = [
   { label: "Today", path: "/" },
   { label: "Practice", path: "/practice" },
-  { label: "Syllabus", path: "/syllabus" },
+  { label: "Search", path: "/search" },
 ];
 
 export function DesktopNav() {
