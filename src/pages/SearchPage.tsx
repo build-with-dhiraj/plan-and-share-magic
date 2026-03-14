@@ -2,7 +2,8 @@ import { useState, useMemo, useCallback, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, X, FileText, Lightbulb, HelpCircle, Filter, ChevronDown, Layers, BookOpen, Globe, Shield, Leaf, Beaker, Scale, PenTool, Mountain, Users, Clock } from "lucide-react";
+import { searchPYQs, type PYQQuestion } from "@/hooks/usePYQBank";
+import { Search, X, FileText, Lightbulb, HelpCircle, Filter, ChevronDown, Layers, BookOpen, Globe, Shield, Leaf, Beaker, Scale, PenTool, Mountain, Users, Clock, ShieldCheck, GraduationCap } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -48,7 +49,7 @@ const CONTENT_LAYERS = [
   { key: "D", label: "Global Reports", desc: "UN, World Bank, IMF" },
 ] as const;
 
-type ContentType = "all" | "articles" | "facts" | "mcqs";
+type ContentType = "all" | "articles" | "facts" | "mcqs" | "pyqs";
 
 // Map tag slugs to their GS paper for filtering
 const TAG_TO_GS: Record<string, string> = {
@@ -94,6 +95,8 @@ const SearchPage = () => {
   const [contentType, setContentType] = useState<ContentType>("all");
   const [selectedGS, setSelectedGS] = useState<string[]>([]);
   const [selectedLayers, setSelectedLayers] = useState<string[]>([]);
+  const [pyqYear, setPyqYear] = useState<number | null>(null);
+  const [pyqStage, setPyqStage] = useState<"prelims" | "mains" | null>(null);
   const [showFilters, setShowFilters] = useState(false);
 
   // Auto-apply tag from URL param on mount
@@ -152,7 +155,23 @@ const SearchPage = () => {
     enabled: contentType === "all" || contentType === "mcqs",
   });
 
-  const isLoading = loadingArticles || loadingFacts || loadingMCQs;
+  // ── Fetch PYQs ──────────────────────────────────────────────────────
+  const { data: pyqs = [], isLoading: loadingPYQs } = useQuery({
+    queryKey: ["search-pyqs", debouncedQuery, pyqYear, pyqStage, selectedGS],
+    queryFn: async () => {
+      if (!debouncedQuery && !pyqYear && !pyqStage && !selectedGS.length) return [];
+      return searchPYQs({
+        query: debouncedQuery || "",
+        exam_stage: pyqStage,
+        year: pyqYear,
+        gs_paper: selectedGS.length === 1 ? selectedGS[0] : null,
+        limit: 50,
+      });
+    },
+    enabled: contentType === "pyqs",
+  });
+
+  const isLoading = loadingArticles || loadingFacts || loadingMCQs || loadingPYQs;
 
   // ── GS paper filter ────────────────────────────────────────────────
   const filterByGS = useCallback(
@@ -167,13 +186,14 @@ const SearchPage = () => {
   const filteredArticles = useMemo(() => articles.filter((a) => filterByGS(a.syllabus_tags)), [articles, filterByGS]);
   const filteredFacts = useMemo(() => facts.filter((f) => filterByGS(f.syllabus_tags)), [facts, filterByGS]);
   const filteredMCQs = useMemo(() => mcqs.filter((m) => filterByGS(m.syllabus_tags)), [mcqs, filterByGS]);
+  const filteredPYQs = useMemo(() => pyqs.filter((p) => filterByGS(p.syllabus_tags)), [pyqs, filterByGS]);
 
-  const totalResults = filteredArticles.length + filteredFacts.length + filteredMCQs.length;
-  const hasActiveFilters = selectedGS.length > 0 || selectedLayers.length > 0;
+  const totalResults = filteredArticles.length + filteredFacts.length + filteredMCQs.length + (contentType === "pyqs" ? filteredPYQs.length : 0);
+  const hasActiveFilters = selectedGS.length > 0 || selectedLayers.length > 0 || pyqYear !== null || pyqStage !== null;
 
   const toggleGS = (gs: string) => setSelectedGS((prev) => (prev.includes(gs) ? prev.filter((g) => g !== gs) : [...prev, gs]));
   const toggleLayer = (l: string) => setSelectedLayers((prev) => (prev.includes(l) ? prev.filter((x) => x !== l) : [...prev, l]));
-  const clearFilters = () => { setSelectedGS([]); setSelectedLayers([]); };
+  const clearFilters = () => { setSelectedGS([]); setSelectedLayers([]); setPyqYear(null); setPyqStage(null); };
 
   return (
     <div className="container max-w-4xl py-4 sm:py-6 px-4 pb-24 lg:pb-6">

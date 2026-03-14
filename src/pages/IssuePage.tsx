@@ -8,10 +8,12 @@ import {
   Clock, ExternalLink, Loader2, ArrowLeft, BookOpen, PenTool,
   HelpCircle, Lightbulb, MessageSquare, FileText,
   Bookmark, BookmarkCheck, RotateCcw, Target,
+  ShieldCheck, CheckCircle2, GraduationCap,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { fetchRelatedPYQs, type PYQQuestion } from "@/hooks/usePYQBank";
 
 function tagColorClass(tag: string): string {
   const t = tag.toLowerCase();
@@ -79,6 +81,13 @@ const IssuePage = () => {
         .limit(5);
       return data ?? [];
     },
+    enabled: !!id,
+  });
+
+  // Related PYQs
+  const { data: relatedPYQs = [] } = useQuery({
+    queryKey: ["related-pyqs", id],
+    queryFn: () => fetchRelatedPYQs(id!),
     enabled: !!id,
   });
 
@@ -313,6 +322,50 @@ const IssuePage = () => {
         </Section>
       )}
 
+      {/* Asked Before in UPSC — Related PYQs */}
+      {relatedPYQs.length > 0 && (
+        <Section icon={GraduationCap} title="Asked Before in UPSC">
+          {relatedPYQs.length >= 2 && (
+            <div className="rounded-lg p-3 mb-3 bg-accent/10 border border-accent/20">
+              <p className="text-sm font-medium text-accent">
+                This topic has been asked {relatedPYQs.length} times in UPSC
+                ({[...new Set(relatedPYQs.map(q => q.year))].sort().join(", ")})
+              </p>
+            </div>
+          )}
+
+          {/* Prelims PYQs */}
+          {relatedPYQs.filter(q => q.exam_stage === "prelims").length > 0 && (
+            <div className="mb-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Prelims PYQs</p>
+              <div className="space-y-2">
+                {relatedPYQs.filter(q => q.exam_stage === "prelims").map(pyq => (
+                  <PYQCard key={pyq.id} pyq={pyq} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Mains PYQs */}
+          {relatedPYQs.filter(q => q.exam_stage === "mains").length > 0 && (
+            <div className="mb-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Mains PYQs</p>
+              <div className="space-y-2">
+                {relatedPYQs.filter(q => q.exam_stage === "mains").map(pyq => (
+                  <PYQCard key={pyq.id} pyq={pyq} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          <Link to="/practice?tab=pyq" className="block mt-3">
+            <Button variant="outline" className="w-full h-10 gap-2 text-sm">
+              <GraduationCap className="h-4 w-4" /> Practice all PYQs on this topic
+            </Button>
+          </Link>
+        </Section>
+      )}
+
       {/* Quick Revision (FAQs) */}
       {faqs && faqs.length > 0 && (
         <Section icon={MessageSquare} title="Quick Revision (FAQs)">
@@ -418,6 +471,112 @@ function MCQCard({ mcq, index }: { mcq: any; index: number }) {
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+// ── PYQ Card — displays an official UPSC question ──────────────
+function PYQCard({ pyq }: { pyq: PYQQuestion }) {
+  const [selected, setSelected] = useState<string | null>(null);
+  const revealed = selected !== null;
+  const isPrelims = pyq.exam_stage === "prelims" && pyq.question_type === "mcq";
+  const paperLabel = pyq.paper_code.toUpperCase().replace("GS", "GS-");
+
+  return (
+    <div className="glass-card rounded-xl p-4 border-l-4 border-green-500/40">
+      {/* Badges row */}
+      <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+        <Badge className="bg-green-500/15 text-green-600 border-green-500/30 text-[10px] gap-1">
+          <ShieldCheck className="h-3 w-3" /> Official PYQ
+        </Badge>
+        {pyq.gs_papers.map((gs: string) => (
+          <Badge key={gs} className={`${gsPaperColorClass(gs)} border text-[10px]`}>{gs}</Badge>
+        ))}
+        <Badge variant="outline" className="text-[10px]">{pyq.year}</Badge>
+        {pyq.official_key?.is_official && (
+          <Badge className="bg-green-500/15 text-green-600 border-green-500/30 text-[10px] gap-1">
+            <CheckCircle2 className="h-3 w-3" /> Official Key
+          </Badge>
+        )}
+      </div>
+
+      {/* Question text */}
+      <p className="text-sm font-medium text-foreground mb-2">
+        {pyq.question_number ? `Q${pyq.question_number}: ` : ""}{pyq.question_text}
+      </p>
+
+      {/* Mains metadata */}
+      {pyq.exam_stage === "mains" && (pyq.marks || pyq.word_limit) && (
+        <p className="text-xs text-muted-foreground mb-2">
+          {pyq.marks && `${pyq.marks} marks`}
+          {pyq.marks && pyq.word_limit && " · "}
+          {pyq.word_limit && `${pyq.word_limit} words`}
+        </p>
+      )}
+
+      {/* Prelims options */}
+      {isPrelims && pyq.options && pyq.options.length > 0 && (
+        <div className="space-y-1.5 mb-3">
+          {pyq.options.map((opt) => {
+            let style = "border-border text-muted-foreground cursor-pointer hover:bg-muted/50";
+            if (revealed && pyq.official_key) {
+              if (opt.option_label === pyq.official_key.answer_label) {
+                style = "border-green-500/40 bg-green-500/10 text-foreground";
+              } else if (opt.option_label === selected) {
+                style = "border-destructive/40 bg-destructive/10 text-foreground";
+              } else {
+                style = "border-border text-muted-foreground opacity-60";
+              }
+            } else if (revealed) {
+              if (opt.option_label === selected) {
+                style = "border-accent/40 bg-accent/10 text-foreground";
+              }
+            }
+            return (
+              <button
+                key={opt.option_label}
+                className={`w-full text-left text-xs px-3 py-2 rounded-lg border transition-colors ${style}`}
+                onClick={() => !revealed && setSelected(opt.option_label)}
+                disabled={revealed}
+              >
+                ({opt.option_label.toLowerCase()}) {opt.option_text}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Answer reveal */}
+      <AnimatePresence>
+        {revealed && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+          >
+            {pyq.official_key ? (
+              <p className="text-xs text-muted-foreground">
+                <strong className={selected === pyq.official_key.answer_label ? "text-green-600" : "text-destructive"}>
+                  {selected === pyq.official_key.answer_label ? "Correct!" : "Incorrect."}
+                </strong>{" "}
+                Official answer: ({pyq.official_key.answer_label.toLowerCase()})
+                {pyq.official_key.is_official ? " [Official Final Key]" : " [Coaching Consensus]"}
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                No official answer key available for this question.
+              </p>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Mains — no interactive options, just a label */}
+      {pyq.exam_stage === "mains" && (
+        <p className="text-xs text-muted-foreground italic mt-1">
+          UPSC does not publish Mains answer keys
+        </p>
+      )}
     </div>
   );
 }

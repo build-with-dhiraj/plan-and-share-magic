@@ -5,11 +5,12 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, ArrowLeft, Target, ChevronRight, ChevronDown } from "lucide-react";
+import { Loader2, ArrowLeft, Target, ChevronRight, ChevronDown, GraduationCap } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { GsTag } from "@/components/issues/IssueCard";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
+import { fetchPYQTopicCounts } from "@/hooks/usePYQBank";
 
 // GS Paper → Topics mapping (UPSC structure)
 const GS_PAPERS = [
@@ -98,6 +99,11 @@ const SyllabusPage = () => {
     },
   });
 
+  const { data: pyqCounts = {} } = useQuery({
+    queryKey: ["syllabus-pyq-counts"],
+    queryFn: fetchPYQTopicCounts,
+  });
+
   const { data: topicArticles = [], isLoading: articlesLoading } = useQuery({
     queryKey: ["syllabus-articles", selectedTopic?.slug],
     queryFn: async () => {
@@ -121,9 +127,18 @@ const SyllabusPage = () => {
     topic.keywords.reduce((sum, kw) =>
       sum + Object.entries(tagCounts).reduce((s, [k, v]) => k.includes(kw) ? s + v : s, 0), 0);
 
+  // Helper to get PYQ count for a topic
+  const getPYQCount = (topic: TopicDef) =>
+    topic.keywords.reduce((sum, kw) =>
+      sum + Object.entries(pyqCounts).reduce((s, [k, v]) => k.toLowerCase().includes(kw) ? s + v : s, 0), 0);
+
   // Get total count per GS paper
   const getPaperCount = (topics: readonly TopicDef[]) =>
     topics.reduce((sum, t) => sum + getTopicCount(t), 0);
+
+  // Get total PYQ count per GS paper
+  const getPaperPYQCount = (topics: readonly TopicDef[]) =>
+    topics.reduce((sum, t) => sum + getPYQCount(t), 0);
 
   return (
     <div className="container max-w-4xl py-4 sm:py-6 px-4 pb-24 lg:pb-6">
@@ -213,6 +228,7 @@ const SyllabusPage = () => {
               <Accordion type="multiple" defaultValue={["GS-1", "GS-2", "GS-3", "GS-4"]} className="space-y-3">
                 {GS_PAPERS.map((gs) => {
                   const paperCount = getPaperCount(gs.topics);
+                  const paperPYQCount = getPaperPYQCount(gs.topics);
                   return (
                     <AccordionItem key={gs.paper} value={gs.paper} className="border-none">
                       <AccordionTrigger className="glass-card rounded-xl px-4 py-3 hover:no-underline hover:shadow-md transition-shadow [&[data-state=open]]:rounded-b-none">
@@ -224,13 +240,16 @@ const SyllabusPage = () => {
                             <p className="text-sm font-semibold text-foreground">{gs.label}</p>
                             <p className="text-xs text-muted-foreground">{gs.subtitle}</p>
                           </div>
-                          <span className="text-xs text-muted-foreground shrink-0">{paperCount} articles</span>
+                          <span className="text-xs text-muted-foreground shrink-0">
+                            {paperCount} articles{paperPYQCount > 0 && ` · ${paperPYQCount} PYQs`}
+                          </span>
                         </div>
                       </AccordionTrigger>
                       <AccordionContent className="glass-card rounded-b-xl border-t border-border px-3 pt-3 pb-3">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                           {gs.topics.map((topic) => {
                             const count = getTopicCount(topic);
+                            const pyqCount = getPYQCount(topic);
                             return (
                               <motion.div
                                 key={topic.slug}
@@ -242,7 +261,14 @@ const SyllabusPage = () => {
                                 <SyllabusTagChip tag={topic.slug} />
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm font-medium text-foreground">{topic.name}</p>
-                                  <p className="text-xs text-muted-foreground">{count} articles</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {count} articles
+                                    {pyqCount > 0 && (
+                                      <span className="inline-flex items-center gap-0.5 ml-1.5">
+                                        · <GraduationCap className="h-3 w-3 text-green-500 inline" /> {pyqCount} PYQs
+                                      </span>
+                                    )}
+                                  </p>
                                 </div>
                                 <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                               </motion.div>

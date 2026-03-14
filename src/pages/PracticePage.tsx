@@ -2,8 +2,8 @@ import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Target, Shuffle, BookOpen, Flame, ArrowLeft, Timer, Zap, Trophy, Calendar } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Target, Shuffle, BookOpen, Flame, ArrowLeft, Timer, Zap, Trophy, Calendar, GraduationCap, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { Link, useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AnimatePresence, motion } from "framer-motion";
 import { sampleMCQs, type MCQ } from "@/data/sampleMCQs";
@@ -12,6 +12,8 @@ import { QuizResults } from "@/components/practice/QuizResults";
 import { cn } from "@/lib/utils";
 import { useQuizPersist } from "@/hooks/useQuizPersist";
 import { fetchMCQs, fetchTopicCounts } from "@/hooks/useMCQBank";
+import { fetchPYQsForPractice, fetchPYQYears, fetchPYQTopicCounts, savePYQAttempt, type PYQQuestion } from "@/hooks/usePYQBank";
+import { useAuth } from "@/hooks/useAuth";
 
 type QuizState = "menu" | "active" | "results";
 
@@ -37,6 +39,10 @@ function shuffleArray<T>(arr: T[]): T[] {
 }
 
 const PracticePage = () => {
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get("tab") === "pyq" ? "pyq" : "daily";
+  const { user } = useAuth();
+
   const [quizState, setQuizState] = useState<QuizState>("menu");
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   const [questions, setQuestions] = useState<MCQ[]>([]);
@@ -47,9 +53,23 @@ const PracticePage = () => {
   const [totalXP, setTotalXP] = useState(0);
   const [topicCounts, setTopicCounts] = useState<Record<string, number>>({});
 
+  // PYQ-specific state
+  const [pyqStage, setPyqStage] = useState<"prelims" | "mains" | null>(null);
+  const [pyqYear, setPyqYear] = useState<number | null>(null);
+  const [pyqGsPaper, setPyqGsPaper] = useState<string | null>(null);
+  const [pyqQuestions, setPyqQuestions] = useState<PYQQuestion[]>([]);
+  const [pyqIndex, setPyqIndex] = useState(0);
+  const [pyqAnswers, setPyqAnswers] = useState<{ label: string; correct: boolean; xp: number }[]>([]);
+  const [pyqState, setPyqState] = useState<QuizState>("menu");
+  const [pyqYears, setPyqYears] = useState<number[]>([]);
+  const [pyqTopicCounts, setPyqTopicCounts] = useState<Record<string, number>>({});
+  const [pyqLoading, setPyqLoading] = useState(false);
+
   // Load topic counts from DB + fallback
   useEffect(() => {
     fetchTopicCounts().then(setTopicCounts);
+    fetchPYQYears().then(setPyqYears);
+    fetchPYQTopicCounts().then(setPyqTopicCounts);
   }, []);
 
   const topics = useMemo(() =>
@@ -68,6 +88,62 @@ const PracticePage = () => {
     setTotalXP(0);
     setQuizState("active");
   }, []);
+
+  // PYQ practice start
+  const startPyqPractice = useCallback(async () => {
+    setPyqLoading(true);
+    try {
+      const pyqs = await fetchPYQsForPractice({
+        exam_stage: pyqStage,
+        year: pyqYear,
+        gs_paper: pyqGsPaper,
+        limit: 20,
+      });
+      if (pyqs.length === 0) {
+        setPyqLoading(false);
+        return;
+      }
+      const shuffled = shuffleArray(pyqs).slice(0, Math.min(10, pyqs.length));
+      setPyqQuestions(shuffled);
+      setPyqIndex(0);
+      setPyqAnswers([]);
+      setPyqState("active");
+    } finally {
+      setPyqLoading(false);
+    }
+  }, [pyqStage, pyqYear, pyqGsPaper]);
+
+  const handlePyqAnswer = useCallback((label: string, correct: boolean, xp: number) => {
+    setPyqAnswers((prev) => [...prev, { label, correct, xp }]);
+    setTotalXP((prev) => prev + xp);
+  }, []);
+
+  const handlePyqNext = useCallback(() => {
+    if (pyqIndex + 1 >= pyqQuestions.length) {
+      // Save attempt
+      if (user) {
+        const correctCount = pyqAnswers.filter(a => a.correct).length;
+        savePYQAttempt({
+          userId: user.id,
+          practiceType: pyqStage || "mixed",
+          yearFilter: pyqYear ?? undefined,
+          paperFilter: pyqGsPaper ?? undefined,
+          totalQuestions: pyqQuestions.length,
+          correctAnswers: correctCount,
+          totalXP,
+          answers: pyqQuestions.map((q, i) => ({
+            pyqQuestionId: q.id,
+            selectedOption: pyqAnswers[i]?.label,
+            isCorrect: pyqAnswers[i]?.correct,
+            xpEarned: pyqAnswers[i]?.xp ?? 0,
+          })),
+        });
+      }
+      setPyqState("results");
+    } else {
+      setPyqIndex((i) => i + 1);
+    }
+  }, [pyqIndex, pyqQuestions, pyqAnswers, user, pyqStage, pyqYear, pyqGsPaper, totalXP]);
 
   const { saveQuizResult } = useQuizPersist();
   const answersRef = useRef<{ questionId: string; selected: number; correct: boolean; xp: number }[]>([]);
@@ -129,13 +205,16 @@ const PracticePage = () => {
             <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight mb-1">Practice</h1>
             <p className="text-sm text-muted-foreground mb-4">UPSC-format MCQ drills to sharpen recall</p>
 
-            <Tabs defaultValue="daily" className="w-full">
-              <TabsList className="w-full grid grid-cols-2 mb-4">
-                <TabsTrigger value="daily" className="text-xs sm:text-sm gap-1.5">
-                  <Trophy className="h-3.5 w-3.5" /> Today's CA Quiz
+            <Tabs defaultValue={initialTab} className="w-full">
+              <TabsList className="w-full grid grid-cols-3 mb-4">
+                <TabsTrigger value="daily" className="text-xs sm:text-sm gap-1">
+                  <Trophy className="h-3.5 w-3.5" /> CA Quiz
                 </TabsTrigger>
-                <TabsTrigger value="topic" className="text-xs sm:text-sm gap-1.5">
-                  <Target className="h-3.5 w-3.5" /> Topic Practice
+                <TabsTrigger value="pyq" className="text-xs sm:text-sm gap-1">
+                  <GraduationCap className="h-3.5 w-3.5" /> PYQ Practice
+                </TabsTrigger>
+                <TabsTrigger value="topic" className="text-xs sm:text-sm gap-1">
+                  <Target className="h-3.5 w-3.5" /> Topic
                 </TabsTrigger>
               </TabsList>
 
@@ -159,6 +238,119 @@ const PracticePage = () => {
                     </Button>
                   </div>
                 </Link>
+              </TabsContent>
+
+              <TabsContent value="pyq" className="space-y-4">
+                <div className="glass-card rounded-xl p-5 space-y-4 relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 via-transparent to-accent/5 pointer-events-none" />
+                  <div className="relative space-y-4">
+                    <div className="text-center">
+                      <GraduationCap className="h-10 w-10 text-green-600 mx-auto mb-2" />
+                      <h2 className="text-lg font-bold text-foreground">Official UPSC PYQ Practice</h2>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Solve actual past UPSC questions
+                      </p>
+                    </div>
+
+                    {/* Stage filter */}
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase mb-1.5">Stage</p>
+                      <div className="flex gap-2">
+                        {[
+                          { label: "All Papers", value: null },
+                          { label: "Prelims", value: "prelims" as const },
+                          { label: "Mains", value: "mains" as const },
+                        ].map((opt) => (
+                          <button
+                            key={opt.label}
+                            onClick={() => setPyqStage(opt.value)}
+                            className={cn(
+                              "px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors",
+                              pyqStage === opt.value
+                                ? "bg-accent text-accent-foreground border-accent"
+                                : "bg-transparent text-muted-foreground border-border hover:bg-muted/50"
+                            )}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* GS Paper filter */}
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase mb-1.5">GS Paper</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[null, "GS-1", "GS-2", "GS-3", "GS-4"].map((gs) => (
+                          <button
+                            key={gs ?? "all"}
+                            onClick={() => setPyqGsPaper(gs)}
+                            className={cn(
+                              "px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors",
+                              pyqGsPaper === gs
+                                ? "bg-accent text-accent-foreground border-accent"
+                                : "bg-transparent text-muted-foreground border-border hover:bg-muted/50"
+                            )}
+                          >
+                            {gs ?? "All"}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Year filter */}
+                    {pyqYears.length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground uppercase mb-1.5">Year</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          <button
+                            onClick={() => setPyqYear(null)}
+                            className={cn(
+                              "px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors",
+                              pyqYear === null
+                                ? "bg-accent text-accent-foreground border-accent"
+                                : "bg-transparent text-muted-foreground border-border hover:bg-muted/50"
+                            )}
+                          >
+                            All
+                          </button>
+                          {pyqYears.slice(0, 10).map((y) => (
+                            <button
+                              key={y}
+                              onClick={() => setPyqYear(y)}
+                              className={cn(
+                                "px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors",
+                                pyqYear === y
+                                  ? "bg-accent text-accent-foreground border-accent"
+                                  : "bg-transparent text-muted-foreground border-border hover:bg-muted/50"
+                              )}
+                            >
+                              {y}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* PYQ topic counts */}
+                    {Object.keys(pyqTopicCounts).length > 0 && (
+                      <div className="text-xs text-muted-foreground">
+                        {Object.entries(pyqTopicCounts).slice(0, 5).map(([t, c]) => (
+                          <span key={t} className="mr-3">{t}: {c}Q</span>
+                        ))}
+                      </div>
+                    )}
+
+                    <Button
+                      onClick={startPyqPractice}
+                      disabled={pyqLoading}
+                      className="w-full h-11 text-sm font-semibold gap-2"
+                    >
+                      <ShieldCheck className="h-4 w-4" />
+                      {pyqLoading ? "Loading PYQs..." : "Start PYQ Practice"}
+                    </Button>
+                  </div>
+                </div>
               </TabsContent>
 
               <TabsContent value="topic" className="space-y-4">
@@ -317,9 +509,202 @@ const PracticePage = () => {
             />
           </motion.div>
         )}
+
+        {/* PYQ Active Quiz */}
+        {pyqState === "active" && pyqQuestions[pyqIndex] && (
+          <motion.div
+            key={`pyq-active-${pyqIndex}`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setPyqState("menu")}>
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <div className="flex-1 space-y-1">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1.5">
+                    <ShieldCheck className="h-3 w-3 text-green-600" />
+                    PYQ {pyqQuestions[pyqIndex].year} {pyqQuestions[pyqIndex].paper_code.toUpperCase()}
+                  </span>
+                  <span>{pyqAnswers.filter(a => a.correct).length}/{pyqAnswers.length} correct</span>
+                </div>
+                <Progress value={((pyqIndex + 1) / pyqQuestions.length) * 100} className="h-1.5" />
+              </div>
+            </div>
+
+            <PYQQuizCard
+              pyq={pyqQuestions[pyqIndex]}
+              questionNumber={pyqIndex + 1}
+              totalQuestions={pyqQuestions.length}
+              onAnswer={handlePyqAnswer}
+              onNext={handlePyqNext}
+            />
+          </motion.div>
+        )}
+
+        {/* PYQ Results */}
+        {pyqState === "results" && (
+          <motion.div
+            key="pyq-results"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPyqState("menu")}>
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <h1 className="text-lg font-bold text-foreground">PYQ Practice Complete</h1>
+            </div>
+
+            <div className="glass-card rounded-xl p-5 space-y-4">
+              <div className="text-center">
+                <GraduationCap className="h-12 w-12 text-green-600 mx-auto mb-2" />
+                <p className="text-3xl font-bold text-foreground">
+                  {pyqAnswers.filter(a => a.correct).length}/{pyqQuestions.length}
+                </p>
+                <p className="text-sm text-muted-foreground">Official PYQs answered correctly</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Accuracy: {pyqQuestions.length > 0 ? Math.round((pyqAnswers.filter(a => a.correct).length / pyqQuestions.length) * 100) : 0}%
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                <Button onClick={startPyqPractice} className="flex-1 gap-2">
+                  <ShieldCheck className="h-4 w-4" /> Try Again
+                </Button>
+                <Button variant="outline" onClick={() => setPyqState("menu")} className="flex-1">
+                  Back to Menu
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );
 };
+
+// ── PYQ Quiz Card — interactive PYQ with official key ──
+function PYQQuizCard({
+  pyq,
+  questionNumber,
+  totalQuestions,
+  onAnswer,
+  onNext,
+}: {
+  pyq: PYQQuestion;
+  questionNumber: number;
+  totalQuestions: number;
+  onAnswer: (label: string, correct: boolean, xp: number) => void;
+  onNext: () => void;
+}) {
+  const [selected, setSelected] = useState<string | null>(null);
+  const revealed = selected !== null;
+  const isPrelims = pyq.question_type === "mcq" && pyq.options && pyq.options.length > 0;
+  const isCorrect = revealed && pyq.official_key ? selected === pyq.official_key.answer_label : false;
+
+  const handleSelect = (label: string) => {
+    if (revealed) return;
+    setSelected(label);
+    const correct = pyq.official_key ? label === pyq.official_key.answer_label : false;
+    onAnswer(label, correct, correct ? 15 : 0);
+  };
+
+  return (
+    <div className="glass-card rounded-xl p-5">
+      {/* Badges */}
+      <div className="flex items-center gap-1.5 mb-3 flex-wrap">
+        <Badge className="bg-green-500/15 text-green-600 border-green-500/30 text-[10px] gap-1">
+          <ShieldCheck className="h-3 w-3" /> Official PYQ
+        </Badge>
+        <Badge variant="outline" className="text-[10px]">{pyq.year}</Badge>
+        <Badge variant="outline" className="text-[10px]">{pyq.paper_code.toUpperCase()}</Badge>
+        {pyq.topic && <Badge variant="secondary" className="text-[10px]">{pyq.topic}</Badge>}
+      </div>
+
+      {/* Question */}
+      <p className="text-sm font-medium text-foreground mb-4 leading-relaxed">
+        Q{questionNumber}. {pyq.question_text}
+      </p>
+
+      {/* Prelims options */}
+      {isPrelims && (
+        <div className="space-y-2 mb-4">
+          {pyq.options!.map((opt) => {
+            let style = "border-border text-foreground cursor-pointer hover:bg-muted/50";
+            if (revealed) {
+              if (pyq.official_key && opt.option_label === pyq.official_key.answer_label) {
+                style = "border-green-500/40 bg-green-500/10 text-foreground font-medium";
+              } else if (opt.option_label === selected) {
+                style = "border-destructive/40 bg-destructive/10 text-foreground";
+              } else {
+                style = "border-border text-muted-foreground opacity-50";
+              }
+            }
+            return (
+              <button
+                key={opt.option_label}
+                className={`w-full text-left text-sm px-4 py-2.5 rounded-lg border transition-colors ${style}`}
+                onClick={() => handleSelect(opt.option_label)}
+                disabled={revealed}
+              >
+                ({opt.option_label.toLowerCase()}) {opt.option_text}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Mains — just show the question, no options */}
+      {!isPrelims && pyq.exam_stage === "mains" && (
+        <div className="mb-4">
+          {pyq.marks && <p className="text-xs text-muted-foreground">{pyq.marks} marks{pyq.word_limit ? ` · ${pyq.word_limit} words` : ""}</p>}
+          <p className="text-xs text-muted-foreground italic mt-2">UPSC does not publish Mains answer keys</p>
+        </div>
+      )}
+
+      {/* Feedback + Next */}
+      <AnimatePresence>
+        {revealed && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-3"
+          >
+            {pyq.official_key ? (
+              <div className={cn(
+                "rounded-lg p-3 text-sm",
+                isCorrect ? "bg-green-500/10 border border-green-500/20" : "bg-destructive/10 border border-destructive/20"
+              )}>
+                <p className="font-semibold">
+                  {isCorrect ? "Correct!" : "Incorrect"}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Official answer: ({pyq.official_key.answer_label.toLowerCase()})
+                  {pyq.official_key.is_official ? (
+                    <span className="ml-1 text-green-600">[Official Final Key]</span>
+                  ) : (
+                    <span className="ml-1">[Coaching Consensus]</span>
+                  )}
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-lg p-3 bg-muted/50 border text-sm">
+                <p className="text-muted-foreground">No official answer key available</p>
+              </div>
+            )}
+
+            <Button onClick={onNext} className="w-full h-10 gap-2">
+              {questionNumber < totalQuestions ? "Next Question" : "See Results"}
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 export default PracticePage;

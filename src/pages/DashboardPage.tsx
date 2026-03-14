@@ -1,11 +1,24 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Flame, BookOpen, Brain, TrendingUp, Loader2 } from "lucide-react";
+import { Flame, BookOpen, Brain, TrendingUp, Loader2, GraduationCap, Target } from "lucide-react";
 import { XPStreakWidget } from "@/components/gamification/XPStreakWidget";
 import { StreakCalendar } from "@/components/gamification/StreakCalendar";
 import { useDashboardData } from "@/hooks/useDashboardData";
+import { fetchPYQDashboardStats, fetchPYQWeakTopics } from "@/hooks/usePYQBank";
+import { useAuth } from "@/hooks/useAuth";
 
 const DashboardPage = () => {
   const data = useDashboardData();
+  const { user } = useAuth();
+  const [pyqStats, setPyqStats] = useState({ totalSolved: 0, totalCorrect: 0, totalAttempts: 0, prelimsAccuracy: 0, mainsAttempted: 0, totalXP: 0 });
+  const [pyqWeakTopics, setPyqWeakTopics] = useState<{ topic: string; accuracy: number }[]>([]);
+
+  useEffect(() => {
+    if (user) {
+      fetchPYQDashboardStats(user.id).then(setPyqStats);
+      fetchPYQWeakTopics(user.id).then(setPyqWeakTopics);
+    }
+  }, [user]);
 
   const coveragePercent = (() => {
     const topics = Object.values(data.topicCoverage);
@@ -42,6 +55,67 @@ const DashboardPage = () => {
       </div>
 
       <StreakCalendar className="mb-6" activityDays={data.activityDays} loading={data.loading} />
+
+      {/* PYQ Progress */}
+      {pyqStats.totalSolved > 0 && (
+        <Card className="glass-card mb-6">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <GraduationCap className="h-4 w-4 text-green-600" /> PYQ Progress
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div>
+                <p className="text-xl font-bold text-foreground">{pyqStats.totalSolved}</p>
+                <p className="text-xs text-muted-foreground">PYQs Solved</p>
+              </div>
+              <div>
+                <p className="text-xl font-bold text-green-600">{pyqStats.prelimsAccuracy}%</p>
+                <p className="text-xs text-muted-foreground">Prelims Acc.</p>
+              </div>
+              <div>
+                <p className="text-xl font-bold text-foreground">{pyqStats.mainsAttempted}</p>
+                <p className="text-xs text-muted-foreground">Mains Tried</p>
+              </div>
+            </div>
+
+            {/* PYQ vs Practice Accuracy comparison */}
+            {coveragePercent > 0 && (
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>PYQ Accuracy</span>
+                  <span>{pyqStats.prelimsAccuracy}%</span>
+                </div>
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <div className="h-full bg-green-500 rounded-full" style={{ width: `${pyqStats.prelimsAccuracy}%` }} />
+                </div>
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Practice Accuracy</span>
+                  <span>{coveragePercent}%</span>
+                </div>
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <div className="h-full bg-accent rounded-full" style={{ width: `${coveragePercent}%` }} />
+                </div>
+              </div>
+            )}
+
+            {/* Weak PYQ Topics */}
+            {pyqWeakTopics.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase mb-1.5">Weak PYQ Topics</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {pyqWeakTopics.slice(0, 5).map(({ topic, accuracy }) => (
+                    <span key={topic} className="text-xs px-2 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/20">
+                      {topic} ({accuracy}%)
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Topic Coverage */}
       {Object.keys(data.topicCoverage).length > 0 && (

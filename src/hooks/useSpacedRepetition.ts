@@ -11,6 +11,7 @@ const INITIAL_INTERVAL = 1;
 interface SpacedCard {
   id: string;
   question_id: string;
+  question_source: string;
   ease_factor: number;
   interval_days: number;
   repetitions: number;
@@ -75,30 +76,84 @@ export function useSpacedRepetition() {
       loading: false,
     });
 
-    // Fetch MCQ data for due cards
+    // Fetch question data for due cards — separate MCQ bank vs PYQ sources
     if (due.length > 0) {
-      const questionIds = due.map((c) => c.question_id);
-
-      // Try mcq_bank first
-      const { data: mcqs } = await supabase
-        .from("mcq_bank")
-        .select("*")
-        .in("id", questionIds);
+      const mcqCardIds = due
+        .filter((c) => !c.question_source || c.question_source === "mcq_bank")
+        .map((c) => c.question_id);
+      const pyqCardIds = due
+        .filter((c) => c.question_source === "pyq_questions")
+        .map((c) => c.question_id);
 
       const mcqMap = new Map<string, MCQ>();
-      for (const row of mcqs || []) {
-        mcqMap.set(row.id, {
-          id: row.id,
-          question: row.question,
-          statements: row.statements || undefined,
-          options: row.options,
-          correctIndex: row.correct_index,
-          explanation: row.explanation,
-          topic: row.topic,
-          difficulty: row.difficulty as MCQ["difficulty"],
-          source: row.source || undefined,
-          timeLimit: row.time_limit || 60,
-        });
+
+      // Resolve MCQ bank questions
+      if (mcqCardIds.length > 0) {
+        const { data: mcqs } = await supabase
+          .from("mcq_bank")
+          .select("*")
+          .in("id", mcqCardIds);
+
+        for (const row of mcqs || []) {
+          mcqMap.set(row.id, {
+            id: row.id,
+            question: row.question,
+            statements: row.statements || undefined,
+            options: row.options,
+            correctIndex: row.correct_index,
+            explanation: row.explanation,
+            topic: row.topic,
+            difficulty: row.difficulty as MCQ["difficulty"],
+            source: row.source || undefined,
+            timeLimit: row.time_limit || 60,
+          });
+        }
+      }
+
+      // Resolve PYQ questions — fetch question + options + keys
+      if (pyqCardIds.length > 0) {
+        const { data: pyqs } = await supabase
+          .from("pyq_questions")
+          .select("*")
+          .in("id", pyqCardIds);
+
+        for (const pyq of pyqs || []) {
+          // Fetch options for this prelims PYQ
+          const { data: opts } = await supabase
+            .from("pyq_prelims_options")
+            .select("*")
+            .eq("question_id", pyq.id)
+            .order("option_label", { ascending: true });
+
+          // Fetch official key
+          const { data: keys } = await supabase
+            .from("pyq_prelims_keys")
+            .select("*")
+            .eq("question_id", pyq.id)
+            .limit(1);
+
+          const options = (opts || []).map((o: any) => o.option_text);
+          const correctLabel = keys?.[0]?.correct_option || "";
+          const correctIndex = correctLabel
+            ? correctLabel.charCodeAt(0) - 65
+            : -1;
+
+          mcqMap.set(pyq.id, {
+            id: pyq.id,
+            question: pyq.question_text,
+            statements: undefined,
+            options:
+              options.length > 0
+                ? options
+                : ["(a)", "(b)", "(c)", "(d)"],
+            correctIndex: correctIndex >= 0 ? correctIndex : 0,
+            explanation: `UPSC ${pyq.year} — ${pyq.exam_stage || "Prelims"} ${pyq.paper_code || ""}`.trim(),
+            topic: pyq.topic || "General Studies",
+            difficulty: "medium" as MCQ["difficulty"],
+            source: `PYQ ${pyq.year}`,
+            timeLimit: 90,
+          });
+        }
       }
 
       const enriched = due
@@ -178,9 +233,11 @@ export function useSpacedRepetition() {
   /**
    * Add a question to the spaced repetition queue
    * (called after a wrong answer in practice)
+   * @param questionId - the question UUID
+   * @param source - 'mcq_bank' (default) or 'pyq_questions'
    */
   const addToQueue = useCallback(
-    async (questionId: string) => {
+    async (questionId: string, source: string = "mcq_bank") => {
       if (!user) return;
 
       // Check if already exists
@@ -206,6 +263,7 @@ export function useSpacedRepetition() {
         await supabase.from("spaced_cards").insert({
           user_id: user.id,
           question_id: questionId,
+          question_source: source,
           ease_factor: INITIAL_EASE,
           interval_days: INITIAL_INTERVAL,
           repetitions: 0,
