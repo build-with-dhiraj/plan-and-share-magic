@@ -70,7 +70,8 @@ export async function fetchRelatedPYQs(articleId: string): Promise<PYQQuestion[]
   try {
     const { data, error } = await supabase
       .from("issue_pyq_links")
-      .select(`
+      .select(
+        `
         id, link_type, link_reason, confidence_score,
         pyq_questions!inner (
           id, year, exam_stage, paper_code, question_number,
@@ -78,7 +79,8 @@ export async function fetchRelatedPYQs(articleId: string): Promise<PYQQuestion[]
           is_published, verification_status, gs_papers, topic,
           syllabus_tags, confidence_score
         )
-      `)
+      `,
+      )
       .eq("article_id", articleId)
       .eq("is_published", true)
       .gte("confidence_score", 0.5)
