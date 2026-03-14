@@ -44,7 +44,6 @@ export function useSpacedRepetition() {
     const today = new Date().toISOString().split("T")[0];
     const todayStart = `${today}T00:00:00`;
 
-    // Fetch all cards for stats + due cards
     const [allCardsRes, dueRes] = await Promise.all([
       supabase
         .from("spaced_cards")
@@ -62,7 +61,6 @@ export function useSpacedRepetition() {
     const allCards = allCardsRes.data || [];
     const due = dueRes.data || [];
 
-    // Calculate stats
     const reviewedToday = allCards.filter(
       (c) => c.last_reviewed_at && c.last_reviewed_at >= todayStart
     ).length;
@@ -75,18 +73,11 @@ export function useSpacedRepetition() {
       loading: false,
     });
 
-    // Fetch question data for due cards — separate MCQ bank vs PYQ sources
+    // Fetch question data from mcq_bank only
     if (due.length > 0) {
-      const mcqCardIds = due
-        .filter((c) => !c.question_source || c.question_source === "mcq_bank")
-        .map((c) => c.question_id);
-      const pyqCardIds = due
-        .filter((c) => c.question_source === "pyq_questions")
-        .map((c) => c.question_id);
-
+      const mcqCardIds = due.map((c) => c.question_id);
       const mcqMap = new Map<string, MCQ>();
 
-      // Resolve MCQ bank questions
       if (mcqCardIds.length > 0) {
         const { data: mcqs } = await supabase
           .from("mcq_bank")
@@ -109,55 +100,12 @@ export function useSpacedRepetition() {
         }
       }
 
-      // Resolve PYQ questions — fetch question + options + keys
-      if (pyqCardIds.length > 0) {
-        const { data: pyqs } = await supabase
-          .from("pyq_questions")
-          .select("*")
-          .in("id", pyqCardIds);
-
-        for (const pyq of pyqs || []) {
-          // Fetch options for this prelims PYQ
-          const { data: opts } = await supabase
-            .from("pyq_prelims_options")
-            .select("*")
-            .eq("question_id", pyq.id)
-            .order("option_label", { ascending: true });
-
-          // Fetch official key
-          const { data: keys } = await supabase
-            .from("pyq_prelims_keys")
-            .select("*")
-            .eq("question_id", pyq.id)
-            .limit(1);
-
-          const options = (opts || []).map((o: any) => o.option_text);
-          const correctLabel = keys?.[0]?.correct_option || "";
-          const correctIndex = correctLabel
-            ? correctLabel.charCodeAt(0) - 65
-            : -1;
-
-          mcqMap.set(pyq.id, {
-            id: pyq.id,
-            question: pyq.question_text,
-            statements: undefined,
-            options:
-              options.length > 0
-                ? options
-                : ["(a)", "(b)", "(c)", "(d)"],
-            correctIndex: correctIndex >= 0 ? correctIndex : 0,
-            explanation: `UPSC ${pyq.year} — ${pyq.exam_stage || "Prelims"} ${pyq.paper_code || ""}`.trim(),
-            topic: pyq.topic || "General Studies",
-            difficulty: "medium" as MCQ["difficulty"],
-            source: `PYQ ${pyq.year}`,
-            timeLimit: 90,
-          });
-        }
-      }
-
       const enriched = due
         .filter((c) => mcqMap.has(c.question_id))
-        .map((c) => ({ ...c, mcq: mcqMap.get(c.question_id)! }));
+        .map((c) => ({
+          ...(c as SpacedCard),
+          mcq: mcqMap.get(c.question_id)!,
+        }));
 
       setDueCards(enriched);
     } else {
@@ -169,10 +117,6 @@ export function useSpacedRepetition() {
     fetchDueCards();
   }, [fetchDueCards]);
 
-  /**
-   * SM-2 review: quality 0-5
-   * 0-2 = forgot (reset), 3 = hard, 4 = good, 5 = easy
-   */
   const reviewCard = useCallback(
     async (cardId: string, quality: number) => {
       if (!user) return;
@@ -184,7 +128,6 @@ export function useSpacedRepetition() {
       const now = new Date().toISOString();
 
       if (quality < 3) {
-        // Reset — failed recall
         repetitions = 0;
         interval_days = INITIAL_INTERVAL;
       } else {
@@ -198,7 +141,6 @@ export function useSpacedRepetition() {
         }
       }
 
-      // Update ease factor
       ease_factor =
         ease_factor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
       if (ease_factor < MIN_EASE) ease_factor = MIN_EASE;
@@ -217,7 +159,6 @@ export function useSpacedRepetition() {
         })
         .eq("id", cardId);
 
-      // Remove from due list
       setDueCards((prev) => prev.filter((c) => c.id !== cardId));
       setStats((prev) => ({
         ...prev,
@@ -229,17 +170,10 @@ export function useSpacedRepetition() {
     [user, dueCards]
   );
 
-  /**
-   * Add a question to the spaced repetition queue
-   * (called after a wrong answer in practice)
-   * @param questionId - the question UUID
-   * @param source - 'mcq_bank' (default) or 'pyq_questions'
-   */
   const addToQueue = useCallback(
-    async (questionId: string, source: string = "mcq_bank") => {
+    async (questionId: string) => {
       if (!user) return;
 
-      // Check if already exists
       const { data: existing } = await supabase
         .from("spaced_cards")
         .select("id")
@@ -248,7 +182,6 @@ export function useSpacedRepetition() {
         .maybeSingle();
 
       if (existing) {
-        // Reset it for re-review
         await supabase
           .from("spaced_cards")
           .update({
@@ -262,7 +195,6 @@ export function useSpacedRepetition() {
         await supabase.from("spaced_cards").insert({
           user_id: user.id,
           question_id: questionId,
-          question_source: source,
           ease_factor: INITIAL_EASE,
           interval_days: INITIAL_INTERVAL,
           repetitions: 0,
