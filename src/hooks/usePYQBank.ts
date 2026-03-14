@@ -248,13 +248,8 @@ export async function fetchPYQTopicCounts(): Promise<Record<string, number>> {
 // Get PYQ topic stats (via RPC)
 // ═══════════════════════════════════════════
 export async function fetchPYQTopicStats(): Promise<PYQTopicStat[]> {
-  try {
-    const { data, error } = await supabase.rpc("get_pyq_topic_stats");
-    if (error || !data) return [];
-    return data as PYQTopicStat[];
-  } catch {
-    return [];
-  }
+  // RPC not yet created — return empty
+  return [];
 }
 
 // ═══════════════════════════════════════════
