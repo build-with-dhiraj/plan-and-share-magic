@@ -256,13 +256,8 @@ export async function fetchPYQTopicStats(): Promise<PYQTopicStat[]> {
 // Get PYQ year breakdown (via RPC)
 // ═══════════════════════════════════════════
 export async function fetchPYQYearBreakdown(): Promise<PYQYearBreakdown[]> {
-  try {
-    const { data, error } = await supabase.rpc("get_pyq_year_breakdown");
-    if (error || !data) return [];
-    return data as PYQYearBreakdown[];
-  } catch {
-    return [];
-  }
+  // RPC not yet created — return empty
+  return [];
 }
 
 // ═══════════════════════════════════════════
