@@ -250,7 +250,7 @@ const PracticePage = () => {
             <Tabs defaultValue={initialTab} className="w-full">
               <TabsList className="w-full grid grid-cols-4 mb-4">
                 <TabsTrigger value="daily" className="text-xs sm:text-sm gap-1">
-                  <Trophy className="h-3.5 w-3.5" /> CA Quiz
+                  <Trophy className="h-3.5 w-3.5" /> Daily
                 </TabsTrigger>
                 <TabsTrigger value="pyq" className="text-xs sm:text-sm gap-1">
                   <GraduationCap className="h-3.5 w-3.5" /> PYQ
@@ -274,9 +274,9 @@ const PracticePage = () => {
                     <div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-transparent to-primary/5 pointer-events-none" />
                     <Trophy className="h-12 w-12 text-accent mx-auto relative" />
                     <div className="relative">
-                      <h2 className="text-lg font-bold text-foreground">Today's CA Quiz</h2>
+                      <h2 className="text-lg font-bold text-foreground">Daily UPSC Quiz</h2>
                       <p className="text-sm text-muted-foreground mt-1">
-                        5 questions from today's current affairs
+                        5 MCQs from today's current affairs
                       </p>
                       <p className="text-xs text-muted-foreground mt-0.5 flex items-center justify-center gap-1">
                         <Calendar className="h-3 w-3" />

@@ -43,9 +43,11 @@ const SELECT_FIELDS =
   "id, title, summary, syllabus_tags, source_name, source_url, published_at, upsc_relevance, depth_tier, gs_papers";
 
 function mapArticle(a: any): TieredArticle {
-  const gsTags: GsTag[] = (a.syllabus_tags ?? [])
-    .map((t: string) => normalizeTag(t))
-    .filter(Boolean) as GsTag[];
+  const gsTags: GsTag[] = [...new Set(
+    (a.syllabus_tags ?? [])
+      .map((t: string) => normalizeTag(t))
+      .filter(Boolean) as GsTag[]
+  )];
   return {
     id: a.id,
     title: a.title,

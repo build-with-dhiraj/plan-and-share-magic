@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import {
   Clock, ExternalLink, Loader2, ArrowLeft, BookOpen, PenTool,
   HelpCircle, Lightbulb, MessageSquare, FileText,
-  Bookmark, BookmarkCheck, RotateCcw, Target,
+  Bookmark, BookmarkCheck, Target, ThumbsUp, ThumbsDown,
   ShieldCheck, CheckCircle2, GraduationCap, Bot, Send, ChevronDown, LogIn, Square,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -159,27 +159,6 @@ const IssuePage = () => {
     },
   });
 
-  // Add all MCQs to revision queue
-  const addToRevision = useMutation({
-    mutationFn: async () => {
-      if (!user) { toast.error("Sign in to add to revision"); return; }
-      if (mcqs.length === 0) { toast.info("No MCQs to add"); return; }
-      const cards = mcqs.map((m: any) => ({
-        user_id: user.id,
-        question_id: m.id,
-        next_review: new Date().toISOString().split("T")[0],
-      }));
-      // Upsert to avoid duplicates
-      const { error } = await supabase.from("spaced_cards").upsert(cards, { onConflict: "user_id,question_id", ignoreDuplicates: true });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success(`${mcqs.length} question${mcqs.length !== 1 ? "s" : ""} added to revision queue`);
-    },
-    onError: () => {
-      toast.error("Failed to add to revision");
-    },
-  });
 
   if (isLoading) {
     return (
@@ -233,15 +212,6 @@ const IssuePage = () => {
             aria-label={isBookmarked ? "Remove bookmark" : "Bookmark"}
           >
             {isBookmarked ? <BookmarkCheck className="h-4 w-4" /> : <Bookmark className="h-4 w-4" />}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground"
-            onClick={() => addToRevision.mutate()}
-            aria-label="Add to revision"
-          >
-            <RotateCcw className="h-4 w-4" />
           </Button>
         </div>
       </div>
@@ -346,20 +316,12 @@ const IssuePage = () => {
           </div>
 
           {/* Practice more CTA */}
-          <div className="mt-4 flex flex-col sm:flex-row gap-2">
-            <Link to="/practice" className="flex-1">
+          <div className="mt-4">
+            <Link to="/practice">
               <Button variant="outline" className="w-full h-10 gap-2 text-sm">
                 <Target className="h-4 w-4" /> Practice more {primaryTopic} MCQs
               </Button>
             </Link>
-            <Button
-              variant="outline"
-              className="flex-1 h-10 gap-2 text-sm"
-              onClick={() => addToRevision.mutate()}
-              disabled={addToRevision.isPending}
-            >
-              <RotateCcw className="h-4 w-4" /> Add to revision queue
-            </Button>
           </div>
         </Section>
       )}
@@ -448,6 +410,9 @@ const IssuePage = () => {
         </a>
       </Section>
 
+      {/* Feedback */}
+      <ArticleFeedback articleId={id!} />
+
       {/* Inline AI Mentor Chat */}
       <InlineMentorChat
         articleTitle={article.title}
@@ -472,6 +437,58 @@ function Section({ icon: Icon, title, children }: { icon: any; title: string; ch
         <div className="h-px flex-1 bg-border" />
       </div>
       {children}
+    </div>
+  );
+}
+
+// ── Article Feedback ────────────────────────────────────────────
+function ArticleFeedback({ articleId }: { articleId: string }) {
+  const [submitted, setSubmitted] = useState<"up" | "down" | null>(null);
+
+  const handleFeedback = async (vote: "up" | "down") => {
+    setSubmitted(vote);
+    // Fire-and-forget — store in article_feedback table (best-effort)
+    try {
+      await supabase.from("article_feedback").insert({
+        article_id: articleId,
+        vote,
+        created_at: new Date().toISOString(),
+      });
+    } catch {
+      // Silent fail — feedback is non-critical
+    }
+  };
+
+  return (
+    <div className="mb-5">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="h-px flex-1 bg-border" />
+        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Feedback</span>
+        <div className="h-px flex-1 bg-border" />
+      </div>
+      <div className="glass-card rounded-xl p-4 text-center">
+        {submitted ? (
+          <p className="text-sm text-muted-foreground">Thanks for your feedback! 🙏</p>
+        ) : (
+          <>
+            <p className="text-sm text-muted-foreground mb-3">Was this article helpful for your UPSC prep?</p>
+            <div className="flex items-center justify-center gap-3">
+              <button
+                onClick={() => handleFeedback("up")}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-green-500/10 hover:text-green-600 hover:border-green-500/30 transition-colors"
+              >
+                <ThumbsUp className="h-4 w-4" /> Helpful
+              </button>
+              <button
+                onClick={() => handleFeedback("down")}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-colors"
+              >
+                <ThumbsDown className="h-4 w-4" /> Not helpful
+              </button>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
