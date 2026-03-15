@@ -235,6 +235,7 @@ Generate comprehensive UPSC study material:
 8. **gs_papers**: Which GS papers this maps to (GS-1, GS-2, GS-3, GS-4)
 9. **syllabus_tags**: Specific UPSC syllabus sub-topics from: ${SYLLABUS_TOPICS.join(", ")}
 10. **facts**: 2-5 factual statements for Prelims (each with syllabus_tags and confidence 0.5-1.0)
+11. **hyperlinked_terms**: Extract 3-10 important UPSC terms, institutions, schemes, acts, or concepts mentioned in the article that a student might want to look up. For each, provide the term as it appears and a URL-friendly slug. Example: [{"term": "NITI Aayog", "slug": "niti-aayog"}, {"term": "Article 370", "slug": "article-370"}]
 
 IMPORTANT: All content must be directly derived from the article. No hallucination.`;
 
@@ -316,6 +317,19 @@ IMPORTANT: All content must be directly derived from the article. No hallucinati
                           additionalProperties: false,
                         },
                       },
+                      hyperlinked_terms: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            term: { type: "string", description: "The term as it appears in the article" },
+                            slug: { type: "string", description: "URL-friendly slug for the term" },
+                          },
+                          required: ["term", "slug"],
+                          additionalProperties: false,
+                        },
+                        description: "3-10 important UPSC terms/institutions/schemes to hyperlink",
+                      },
                     },
                     required: [
                       "summary",
@@ -328,6 +342,7 @@ IMPORTANT: All content must be directly derived from the article. No hallucinati
                       "gs_papers",
                       "syllabus_tags",
                       "facts",
+                      "hyperlinked_terms",
                     ],
                     additionalProperties: false,
                   },
@@ -383,6 +398,7 @@ IMPORTANT: All content must be directly derived from the article. No hallucinati
             conclusion: extracted.conclusion || null,
             faqs: extracted.faqs || null,
             gs_papers: extracted.gs_papers || [],
+            hyperlinked_terms: extracted.hyperlinked_terms || [],
           })
           .eq("id", article.id);
 

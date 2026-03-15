@@ -2,12 +2,13 @@ import { useState, useMemo, useCallback, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { searchPYQs, type PYQQuestion } from "@/hooks/usePYQBank";
-import { Search, X, FileText, Lightbulb, HelpCircle, Filter, ChevronDown, Layers, BookOpen, Globe, Shield, Leaf, Beaker, Scale, PenTool, Mountain, Users, Clock, ShieldCheck, GraduationCap } from "lucide-react";
+import { searchPYQs, fetchPYQTopicCounts, type PYQQuestion } from "@/hooks/usePYQBank";
+import { Search, X, FileText, Lightbulb, HelpCircle, Filter, ChevronDown, ChevronRight, Layers, BookOpen, Globe, Shield, Leaf, Beaker, Scale, PenTool, Mountain, Users, Clock, ShieldCheck, GraduationCap, Target } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { motion, AnimatePresence } from "framer-motion";
 
 // ── UPSC GS Syllabus Taxonomy ──────────────────────────────────────────
@@ -43,10 +44,7 @@ const GS_PAPERS = [
 ] as const;
 
 const CONTENT_LAYERS = [
-  { key: "A", label: "Canonical (Gov)", desc: "PIB, PRS, NITI Aayog" },
-  { key: "B", label: "Quality Media", desc: "The Hindu, Indian Express" },
-  { key: "C", label: "Coaching", desc: "Benchmark compilations" },
-  { key: "D", label: "Global Reports", desc: "UN, World Bank, IMF" },
+  { key: "A", label: "Primary", desc: "PW IAS, Drishti, SuperKalam, PW YouTube" },
 ] as const;
 
 type ContentType = "all" | "articles" | "facts" | "mcqs" | "pyqs";
@@ -111,6 +109,59 @@ const SearchPage = () => {
       setQuery(tagParam.charAt(0).toUpperCase() + tagParam.slice(1));
     }
   }, [tagParam]);
+
+  // GS Paper browser data (shown in empty state)
+  const { data: tagCounts = {} } = useQuery({
+    queryKey: ["syllabus-tag-counts"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("articles")
+        .select("syllabus_tags")
+        .eq("processed", true)
+        .not("layer", "eq", "C");
+      const counts: Record<string, number> = {};
+      for (const row of data ?? []) {
+        for (const tag of row.syllabus_tags ?? []) {
+          counts[tag.toLowerCase()] = (counts[tag.toLowerCase()] || 0) + 1;
+        }
+      }
+      return counts;
+    },
+  });
+
+  const { data: pyqCounts = {} } = useQuery({
+    queryKey: ["syllabus-pyq-counts"],
+    queryFn: fetchPYQTopicCounts,
+  });
+
+  const getTopicArticleCount = (keywords: string[]) =>
+    keywords.reduce((sum, kw) =>
+      sum + Object.entries(tagCounts).reduce((s, [k, v]) => k.includes(kw) ? s + v : s, 0), 0);
+
+  const getTopicPYQCount = (keywords: string[]) =>
+    keywords.reduce((sum, kw) =>
+      sum + Object.entries(pyqCounts).reduce((s, [k, v]) => k.toLowerCase().includes(kw) ? s + v : s, 0), 0);
+
+  // GS Paper topic definitions for the browser
+  const gsBrowserPapers = [
+    { paper: "GS-I", label: "History, Society & Geography", color: "gs-tag-history", topics: [
+      { name: "Indian History", tag: "History", keywords: ["history", "culture"] },
+      { name: "Society", tag: "Society", keywords: ["society", "social"] },
+      { name: "Geography", tag: "Geography", keywords: ["geography"] },
+    ]},
+    { paper: "GS-II", label: "Polity, Governance & IR", color: "gs-tag-polity", topics: [
+      { name: "Polity & Governance", tag: "Polity", keywords: ["polity", "governance"] },
+      { name: "International Relations", tag: "IR", keywords: ["international", "ir"] },
+    ]},
+    { paper: "GS-III", label: "Economy, S&T & Environment", color: "gs-tag-economy", topics: [
+      { name: "Economy", tag: "Economy", keywords: ["economy"] },
+      { name: "Science & Tech", tag: "Science", keywords: ["science", "tech"] },
+      { name: "Environment", tag: "Environment", keywords: ["environment", "ecology", "climate"] },
+    ]},
+    { paper: "GS-IV", label: "Ethics & Integrity", color: "gs-tag-ethics", topics: [
+      { name: "Ethics & Integrity", tag: "Ethics", keywords: ["ethics"] },
+    ]},
+  ];
 
   const debouncedQuery = useDebounce(query, 300);
 
@@ -319,16 +370,75 @@ const SearchPage = () => {
         )}
 
       {!isLoading && !query && !hasActiveFilters && !tagParam && (
-          <div className="text-center py-12 text-muted-foreground space-y-2">
-            <Search className="h-8 w-8 mx-auto text-muted-foreground/40" />
-            <p className="text-sm">Search across all issues, facts, and topics</p>
-            <p className="text-xs">Try "Article 21", "RBI policy", or "climate change"</p>
-            <div className="flex flex-wrap justify-center gap-2 mt-4">
-              {["Economy", "Polity", "Environment", "International Relations", "Science & Tech"].map((t) => (
-                <button key={t} onClick={() => setQuery(t)} className="px-3 py-1 rounded-full border border-border text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
-                  {t}
-                </button>
-              ))}
+          <div className="space-y-5">
+            {/* Quick search suggestions */}
+            <div className="text-center space-y-2">
+              <Search className="h-7 w-7 mx-auto text-muted-foreground/40" />
+              <p className="text-sm text-muted-foreground">Search across all issues, facts, and topics</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {["Economy", "Polity", "Environment", "International Relations", "Science & Tech"].map((t) => (
+                  <button key={t} onClick={() => setQuery(t)} className="px-3 py-1 rounded-full border border-border text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* GS Paper Browser */}
+            <div>
+              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-3">
+                <BookOpen className="h-4 w-4 text-accent" /> Browse by GS Paper
+              </h2>
+              <Accordion type="multiple" defaultValue={["GS-I", "GS-II", "GS-III", "GS-IV"]} className="space-y-2">
+                {gsBrowserPapers.map((gs) => {
+                  const paperArticles = gs.topics.reduce((s, t) => s + getTopicArticleCount(t.keywords), 0);
+                  const paperPYQs = gs.topics.reduce((s, t) => s + getTopicPYQCount(t.keywords), 0);
+                  return (
+                    <AccordionItem key={gs.paper} value={gs.paper} className="border-none">
+                      <AccordionTrigger className="glass-card rounded-xl px-4 py-2.5 hover:no-underline hover:shadow-md transition-shadow [&[data-state=open]]:rounded-b-none">
+                        <div className="flex items-center gap-3 flex-1 text-left">
+                          <Badge className={`${gs.color} border text-xs font-bold px-2 py-0.5`}>{gs.paper}</Badge>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-foreground">{gs.label}</p>
+                          </div>
+                          <span className="text-[10px] text-muted-foreground shrink-0">
+                            {paperArticles} articles{paperPYQs > 0 && ` · ${paperPYQs} PYQs`}
+                          </span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="glass-card rounded-b-xl border-t border-border px-3 pt-2 pb-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                          {gs.topics.map((topic) => {
+                            const count = getTopicArticleCount(topic.keywords);
+                            const pyqCount = getTopicPYQCount(topic.keywords);
+                            return (
+                              <button
+                                key={topic.tag}
+                                onClick={() => { setQuery(topic.tag); setContentType("articles"); }}
+                                className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-muted/60 transition-colors text-left"
+                                style={{ opacity: count === 0 ? 0.5 : 1 }}
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-foreground">{topic.name}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {count} articles
+                                    {pyqCount > 0 && (
+                                      <span className="inline-flex items-center gap-0.5 ml-1.5">
+                                        · <GraduationCap className="h-3 w-3 text-green-500 inline" /> {pyqCount} PYQs
+                                      </span>
+                                    )}
+                                  </p>
+                                </div>
+                                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  );
+                })}
+              </Accordion>
             </div>
           </div>
         )}

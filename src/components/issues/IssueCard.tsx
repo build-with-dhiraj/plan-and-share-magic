@@ -1,6 +1,6 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Bookmark, BookmarkCheck, RotateCcw, ChevronRight } from "lucide-react";
+import { Bookmark, BookmarkCheck, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { SyllabusTagChip } from "./SyllabusTagChips";
 import { ConfidenceBadge } from "./ConfidenceBadge";
@@ -31,7 +31,6 @@ interface IssueCardProps {
   gsPapers?: string[];
   sourceCount: number;
   confidence: number | null;
-  staticAnchor?: string;
 }
 
 const GS_PAPER_COLORS: Record<string, string> = {
@@ -49,9 +48,9 @@ export function IssueCard({
   gsPapers = [],
   sourceCount,
   confidence,
-  staticAnchor,
 }: IssueCardProps) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const { data: isBookmarked = false } = useQuery({
@@ -73,7 +72,7 @@ export function IssueCard({
   const toggleBookmark = useMutation({
     mutationFn: async () => {
       if (!user) {
-        toast.error("Sign in to bookmark");
+        toast.error("Sign in to bookmark", { action: { label: "Sign in", onClick: () => navigate("/auth", { state: { from: `/issue/${id}` } }) } });
         return;
       }
       if (isBookmarked) {
@@ -119,10 +118,6 @@ export function IssueCard({
 
         <p className="text-[13px] sm:text-sm text-muted-foreground leading-relaxed mb-2.5 line-clamp-3">{synopsis}</p>
 
-        {staticAnchor && (
-          <p className="text-xs text-accent font-medium mb-2.5 line-clamp-1">📎 Revise: {staticAnchor}</p>
-        )}
-
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <SourceBadge count={sourceCount} />
@@ -145,22 +140,6 @@ export function IssueCard({
                   </button>
                 </TooltipTrigger>
                 <TooltipContent>{isBookmarked ? "Remove bookmark" : "Save to bookmarks"}</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    className="h-9 w-9 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 active:scale-90 transition-all"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      toast.info("Added to revision queue");
-                    }}
-                    aria-label="Add to revision queue"
-                  >
-                    <RotateCcw className="h-4 w-4" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>Add to revision queue</TooltipContent>
               </Tooltip>
             </TooltipProvider>
             <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-accent transition-colors ml-0.5" />

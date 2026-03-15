@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Newspaper, Target, Search as SearchIcon, MoreHorizontal, Bookmark, Flame, Settings, RotateCcw } from "lucide-react";
+import { Newspaper, Target, MoreHorizontal, Search, Bookmark, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/hooks/useAuth";
@@ -8,24 +8,18 @@ import { useAuth } from "@/hooks/useAuth";
 const NAV_ITEMS = [
   { label: "Today", path: "/", icon: Newspaper },
   { label: "Practice", path: "/practice", icon: Target },
-  { label: "Search", path: "/search", icon: SearchIcon },
+];
+
+const MORE_ITEMS = [
+  { label: "Search", path: "/search", icon: Search },
+  { label: "Saved", path: "/saved", icon: Bookmark },
+  { label: "Settings", path: "/settings", icon: Settings },
 ];
 
 export function MobileNav() {
   const location = useLocation();
   const [open, setOpen] = useState(false);
   const { user } = useAuth();
-
-  const moreItems = [
-    { label: "Saved", path: "/saved", icon: Bookmark },
-    { label: "Revise", path: "/revision", icon: RotateCcw },
-    ...(user
-      ? [
-          { label: "Dashboard", path: "/dashboard", icon: Flame },
-          { label: "Settings", path: "/settings", icon: Settings },
-        ]
-      : []),
-  ];
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden border-t border-border bg-background/95 backdrop-blur-xl">
@@ -67,7 +61,7 @@ export function MobileNav() {
               <SheetTitle className="text-left text-sm">More</SheetTitle>
             </SheetHeader>
             <div className="grid grid-cols-4 gap-4 py-4">
-              {moreItems.map((item) => (
+              {MORE_ITEMS.map((item) => (
                 <Link
                   key={item.path}
                   to={item.path}

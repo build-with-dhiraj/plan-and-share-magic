@@ -1,19 +1,21 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Clock, ExternalLink, Loader2, ArrowLeft, BookOpen, PenTool,
   HelpCircle, Lightbulb, MessageSquare, FileText,
   Bookmark, BookmarkCheck, RotateCcw, Target,
-  ShieldCheck, CheckCircle2, GraduationCap,
+  ShieldCheck, CheckCircle2, GraduationCap, Bot, Send, ChevronDown, LogIn, Square,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { fetchRelatedPYQs, type PYQQuestion } from "@/hooks/usePYQBank";
+import { useMentorChat, type ChatMessage } from "@/hooks/useMentorChat";
 
 function tagColorClass(tag: string): string {
   const t = tag.toLowerCase();
@@ -37,6 +39,39 @@ function gsPaperColorClass(paper: string): string {
     case "GS-4": return "gs-tag-ethics";
     default: return "";
   }
+}
+
+// ── Auto-hyperlink UPSC terms (Drishti IAS style) ───────────────
+function HyperlinkedText({ text, terms }: { text: string; terms: { term: string; slug: string }[] }) {
+  if (!terms.length) return <>{text}</>;
+
+  // Build regex from all terms (longest first to avoid partial matches)
+  const sorted = [...terms].sort((a, b) => b.term.length - a.term.length);
+  const pattern = sorted.map((t) => t.term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+  const regex = new RegExp(`(${pattern})`, "gi");
+
+  const termMap = new Map(sorted.map((t) => [t.term.toLowerCase(), t]));
+
+  const parts = text.split(regex);
+  return (
+    <>
+      {parts.map((part, i) => {
+        const match = termMap.get(part.toLowerCase());
+        if (match) {
+          return (
+            <Link
+              key={i}
+              to={`/search?q=${encodeURIComponent(match.term)}`}
+              className="text-accent underline underline-offset-2 decoration-accent/40 hover:decoration-accent transition-colors"
+            >
+              {part}
+            </Link>
+          );
+        }
+        return <span key={i}>{part}</span>;
+      })}
+    </>
+  );
 }
 
 const IssuePage = () => {
@@ -172,6 +207,7 @@ const IssuePage = () => {
   const detailedAnalysis = (article.detailed_analysis as { heading: string; content: string }[] | null) ?? null;
   const conclusion: string | null = article.conclusion ?? null;
   const faqs = (article.faqs as { question: string; answer: string }[] | null) ?? null;
+  const hyperlinkedTerms = (article.hyperlinked_terms as { term: string; slug: string }[] | null) ?? [];
 
   const timeSince = article.published_at
     ? formatTimeSince(new Date(article.published_at))
@@ -253,7 +289,9 @@ const IssuePage = () => {
       {/* Why in News */}
       {article.summary && (
         <Section icon={BookOpen} title="Why in News?">
-          <div className="text-sm text-foreground leading-relaxed whitespace-pre-line">{article.summary}</div>
+          <div className="text-sm text-foreground leading-relaxed whitespace-pre-line">
+            <HyperlinkedText text={article.summary} terms={hyperlinkedTerms} />
+          </div>
         </Section>
       )}
 
@@ -264,7 +302,9 @@ const IssuePage = () => {
             {detailedAnalysis.map((section, i) => (
               <div key={i}>
                 <h4 className="text-sm font-semibold text-foreground mb-1.5">{section.heading}</h4>
-                <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{section.content}</p>
+                <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
+                  <HyperlinkedText text={section.content} terms={hyperlinkedTerms} />
+                </p>
               </div>
             ))}
           </div>
@@ -274,7 +314,9 @@ const IssuePage = () => {
       {/* Conclusion */}
       {conclusion && (
         <Section icon={Lightbulb} title="Conclusion">
-          <p className="text-sm text-foreground leading-relaxed">{conclusion}</p>
+          <p className="text-sm text-foreground leading-relaxed">
+            <HyperlinkedText text={conclusion} terms={hyperlinkedTerms} />
+          </p>
         </Section>
       )}
 
@@ -405,6 +447,14 @@ const IssuePage = () => {
           <ExternalLink className="h-3.5 w-3.5" /> Read original article
         </a>
       </Section>
+
+      {/* Inline AI Mentor Chat */}
+      <InlineMentorChat
+        articleTitle={article.title}
+        articleSummary={article.summary || ""}
+        prelimsKeywords={prelimsKeywords}
+        tags={tags}
+      />
     </div>
   );
 };
@@ -576,6 +626,197 @@ function PYQCard({ pyq }: { pyq: PYQQuestion }) {
         <p className="text-xs text-muted-foreground italic mt-1">
           UPSC does not publish Mains answer keys
         </p>
+      )}
+    </div>
+  );
+}
+
+// ── Inline AI Mentor Chat ──────────────────────────────────────
+function InlineMentorChat({
+  articleTitle,
+  articleSummary,
+  prelimsKeywords,
+  tags,
+}: {
+  articleTitle: string;
+  articleSummary: string;
+  prelimsKeywords: string[];
+  tags: string[];
+}) {
+  const { user } = useAuth();
+  const { messages, isLoading, sendMessage, stopStreaming, clearChat } = useMentorChat();
+  const [open, setOpen] = useState(false);
+  const [input, setInput] = useState("");
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages]);
+
+  const suggestedPrompts = [
+    prelimsKeywords.length > 0 ? `Explain ${prelimsKeywords[0]}` : null,
+    "What's the mains angle here?",
+    "Generate a practice question on this",
+    "Simplify this topic for me",
+  ].filter(Boolean) as string[];
+
+  const handleSend = async (text: string) => {
+    if (!text.trim()) return;
+    // If first message, include article context
+    const isFirst = messages.length === 0;
+    const contextPrefix = isFirst
+      ? `[Context: I'm reading an article titled "${articleTitle}". Summary: ${articleSummary.slice(0, 300)}. Topics: ${tags.join(", ")}. Key terms: ${prelimsKeywords.join(", ")}]\n\n`
+      : "";
+    await sendMessage(contextPrefix + text);
+    setInput("");
+  };
+
+  return (
+    <div className="mb-5">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="h-px flex-1 bg-border" />
+        <div className="flex items-center gap-1.5 text-muted-foreground">
+          <Bot className="h-3.5 w-3.5" />
+          <span className="text-xs font-semibold uppercase tracking-wider">AI Mentor</span>
+        </div>
+        <div className="h-px flex-1 bg-border" />
+      </div>
+
+      {!open ? (
+        <button
+          onClick={() => setOpen(true)}
+          className="w-full glass-card rounded-xl p-4 text-left hover:shadow-md transition-shadow group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-accent/15 flex items-center justify-center shrink-0">
+              <Bot className="h-5 w-5 text-accent" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-foreground">Have a doubt about this article?</p>
+              <p className="text-xs text-muted-foreground">Ask the AI Mentor for explanations, mains angles, or practice questions</p>
+            </div>
+            <ChevronDown className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+          </div>
+        </button>
+      ) : (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          className="glass-card rounded-xl overflow-hidden"
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between p-3 border-b border-border">
+            <div className="flex items-center gap-2">
+              <Bot className="h-4 w-4 text-accent" />
+              <span className="text-sm font-semibold text-foreground">AI Mentor</span>
+            </div>
+            <div className="flex items-center gap-1">
+              {messages.length > 0 && (
+                <button
+                  onClick={clearChat}
+                  className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded transition-colors"
+                >
+                  Clear
+                </button>
+              )}
+              <button
+                onClick={() => setOpen(false)}
+                className="text-muted-foreground hover:text-foreground p-1 rounded transition-colors"
+              >
+                <ChevronDown className="h-4 w-4 rotate-180" />
+              </button>
+            </div>
+          </div>
+
+          {/* Auth gate */}
+          {!user ? (
+            <div className="p-6 text-center space-y-3">
+              <Bot className="h-8 w-8 text-muted-foreground/40 mx-auto" />
+              <p className="text-sm text-muted-foreground">Sign in to ask questions</p>
+              <Button asChild size="sm">
+                <Link to="/auth" className="gap-2">
+                  <LogIn className="h-3.5 w-3.5" /> Sign In
+                </Link>
+              </Button>
+            </div>
+          ) : (
+            <>
+              {/* Messages */}
+              <div className="max-h-80 overflow-y-auto p-3 space-y-3">
+                {messages.length === 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground text-center mb-3">Try one of these:</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {suggestedPrompts.map((prompt) => (
+                        <button
+                          key={prompt}
+                          onClick={() => handleSend(prompt)}
+                          disabled={isLoading}
+                          className="text-xs px-3 py-1.5 rounded-full border border-border text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                        >
+                          {prompt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {messages.map((msg, i) => (
+                  <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                    <div
+                      className={`max-w-[85%] rounded-xl px-3 py-2 text-sm leading-relaxed ${
+                        msg.role === "user"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-foreground"
+                      }`}
+                    >
+                      {msg.role === "user"
+                        ? msg.content.replace(/^\[Context:.*?\]\n\n/, "")
+                        : msg.content}
+                    </div>
+                  </div>
+                ))}
+                {isLoading && messages[messages.length - 1]?.role !== "assistant" && (
+                  <div className="flex justify-start">
+                    <div className="bg-muted rounded-xl px-3 py-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    </div>
+                  </div>
+                )}
+                <div ref={chatEndRef} />
+              </div>
+
+              {/* Input */}
+              <div className="p-3 border-t border-border">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSend(input);
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <Input
+                    placeholder="Ask about this article..."
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    className="h-9 text-sm flex-1"
+                    disabled={isLoading}
+                  />
+                  {isLoading ? (
+                    <Button type="button" size="icon" variant="ghost" className="h-9 w-9 shrink-0" onClick={stopStreaming}>
+                      <Square className="h-3.5 w-3.5" />
+                    </Button>
+                  ) : (
+                    <Button type="submit" size="icon" className="h-9 w-9 shrink-0" disabled={!input.trim()}>
+                      <Send className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </form>
+              </div>
+            </>
+          )}
+        </motion.div>
       )}
     </div>
   );

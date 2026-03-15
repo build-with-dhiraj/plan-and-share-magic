@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Search, User, Flame, Bookmark, RotateCcw } from "lucide-react";
+import { Search, User, Bookmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -8,7 +8,6 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 const NAV_ITEMS = [
   { label: "Today", path: "/" },
   { label: "Practice", path: "/practice" },
-  { label: "Search", path: "/search" },
 ];
 
 export function DesktopNav() {
@@ -32,8 +31,8 @@ export function DesktopNav() {
                 className={cn(
                   "px-3 py-2 rounded-md text-sm font-medium transition-colors",
                 (item.path === "/" ? location.pathname === "/" : location.pathname.startsWith(item.path))
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 )}
               >
                 {item.label}
@@ -56,32 +55,12 @@ export function DesktopNav() {
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="ghost" size="icon" asChild>
-                  <Link to="/revision">
-                    <RotateCcw className="h-4 w-4" />
-                  </Link>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Revise</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" asChild>
                   <Link to="/saved">
                     <Bookmark className="h-4 w-4" />
                   </Link>
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Saved</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" asChild>
-                  <Link to="/dashboard">
-                    <Flame className="h-4 w-4" />
-                  </Link>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Dashboard</TooltipContent>
             </Tooltip>
             <ThemeToggle />
             <Tooltip>

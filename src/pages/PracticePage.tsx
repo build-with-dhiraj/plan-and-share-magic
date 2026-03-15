@@ -2,7 +2,8 @@ import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Target, Shuffle, BookOpen, Flame, ArrowLeft, Timer, Zap, Trophy, Calendar, GraduationCap, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Target, Shuffle, BookOpen, Flame, ArrowLeft, Timer, Zap, Trophy, Calendar, GraduationCap, ShieldCheck, CheckCircle2, RotateCcw, XCircle, Brain } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AnimatePresence, motion } from "framer-motion";
@@ -14,6 +15,8 @@ import { useQuizPersist } from "@/hooks/useQuizPersist";
 import { fetchMCQs, fetchTopicCounts } from "@/hooks/useMCQBank";
 import { fetchPYQsForPractice, fetchPYQYears, fetchPYQTopicCounts, savePYQAttempt, type PYQQuestion } from "@/hooks/usePYQBank";
 import { useAuth } from "@/hooks/useAuth";
+import { useSpacedRepetition } from "@/hooks/useSpacedRepetition";
+import { XPStreakWidget } from "@/components/gamification/XPStreakWidget";
 
 type QuizState = "menu" | "active" | "results";
 
@@ -40,8 +43,47 @@ function shuffleArray<T>(arr: T[]): T[] {
 
 const PracticePage = () => {
   const [searchParams] = useSearchParams();
-  const initialTab = searchParams.get("tab") === "pyq" ? "pyq" : "daily";
+  const tabParam = searchParams.get("tab");
+  const initialTab = tabParam === "pyq" ? "pyq" : tabParam === "revise" ? "revise" : "daily";
   const { user } = useAuth();
+
+  // Spaced repetition (Revise sub-tab)
+  const { dueCards, stats: revisionStats, reviewCard, refresh: refreshRevision } = useSpacedRepetition();
+  const [reviseState, setReviseState] = useState<"queue" | "review" | "done">("queue");
+  const [reviseIdx, setReviseIdx] = useState(0);
+  const [reviseSelectedOption, setReviseSelectedOption] = useState<number | null>(null);
+  const [reviseRevealed, setReviseRevealed] = useState(false);
+  const [reviseReviewedCount, setReviseReviewedCount] = useState(0);
+
+  const currentReviseCard = dueCards[reviseIdx];
+
+  const startReviseSession = useCallback(() => {
+    setReviseIdx(0);
+    setReviseSelectedOption(null);
+    setReviseRevealed(false);
+    setReviseReviewedCount(0);
+    setReviseState("review");
+  }, []);
+
+  const handleReviseOptionSelect = (index: number) => {
+    if (reviseRevealed) return;
+    setReviseSelectedOption(index);
+    setReviseRevealed(true);
+  };
+
+  const handleReviseSubmit = async (quality: number) => {
+    if (!currentReviseCard) return;
+    await reviewCard(currentReviseCard.id, quality);
+    setReviseReviewedCount((p) => p + 1);
+
+    if (reviseIdx + 1 >= dueCards.length) {
+      setReviseState("done");
+    } else {
+      setReviseIdx((i) => i + 1);
+      setReviseSelectedOption(null);
+      setReviseRevealed(false);
+    }
+  };
 
   const [quizState, setQuizState] = useState<QuizState>("menu");
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
@@ -206,15 +248,23 @@ const PracticePage = () => {
             <p className="text-sm text-muted-foreground mb-4">UPSC-format MCQ drills to sharpen recall</p>
 
             <Tabs defaultValue={initialTab} className="w-full">
-              <TabsList className="w-full grid grid-cols-3 mb-4">
+              <TabsList className="w-full grid grid-cols-4 mb-4">
                 <TabsTrigger value="daily" className="text-xs sm:text-sm gap-1">
                   <Trophy className="h-3.5 w-3.5" /> CA Quiz
                 </TabsTrigger>
                 <TabsTrigger value="pyq" className="text-xs sm:text-sm gap-1">
-                  <GraduationCap className="h-3.5 w-3.5" /> PYQ Practice
+                  <GraduationCap className="h-3.5 w-3.5" /> PYQ
                 </TabsTrigger>
                 <TabsTrigger value="topic" className="text-xs sm:text-sm gap-1">
                   <Target className="h-3.5 w-3.5" /> Topic
+                </TabsTrigger>
+                <TabsTrigger value="revise" className="text-xs sm:text-sm gap-1">
+                  <RotateCcw className="h-3.5 w-3.5" /> Revise
+                  {revisionStats.dueToday > 0 && (
+                    <span className="ml-0.5 h-4 min-w-[16px] px-1 rounded-full bg-accent text-[10px] font-bold text-accent-foreground flex items-center justify-center">
+                      {revisionStats.dueToday}
+                    </span>
+                  )}
                 </TabsTrigger>
               </TabsList>
 
@@ -424,6 +474,200 @@ const PracticePage = () => {
                     </motion.button>
                   ))}
                 </div>
+              </TabsContent>
+
+              {/* ── Revise (SM-2 Spaced Repetition) ── */}
+              <TabsContent value="revise">
+                <AnimatePresence mode="wait">
+                  {reviseState === "queue" && (
+                    <motion.div key="revise-queue" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                      <Card className="glass-card mb-4">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-base flex items-center gap-2">
+                            <RotateCcw className="h-4 w-4 text-accent" /> Today's Review Queue
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          {revisionStats.loading ? (
+                            <p className="text-sm text-muted-foreground">Loading…</p>
+                          ) : revisionStats.dueToday === 0 ? (
+                            <div className="text-center py-4">
+                              <CheckCircle2 className="h-8 w-8 text-accent mx-auto mb-2" />
+                              <p className="text-sm font-medium text-foreground">All caught up!</p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                No cards due. Practice quizzes & get questions wrong to build your review queue.
+                              </p>
+                            </div>
+                          ) : (
+                            <>
+                              <p className="text-sm text-muted-foreground mb-4">
+                                {revisionStats.dueToday} card{revisionStats.dueToday !== 1 ? "s" : ""} due for review
+                              </p>
+                              <Button onClick={startReviseSession} className="w-full bg-primary text-primary-foreground">
+                                <Flame className="h-4 w-4 mr-2" /> Start Review Session
+                              </Button>
+                            </>
+                          )}
+                        </CardContent>
+                      </Card>
+
+                      <div className="grid grid-cols-3 gap-3">
+                        {[
+                          { label: "Due Today", value: revisionStats.loading ? "…" : String(revisionStats.dueToday), color: "text-accent", icon: Brain },
+                          { label: "Reviewed", value: revisionStats.loading ? "…" : String(revisionStats.reviewedToday), color: "text-[hsl(var(--gs-economy))]", icon: RotateCcw },
+                          { label: "Mastered", value: revisionStats.loading ? "…" : String(revisionStats.mastered), color: "text-[hsl(var(--gs-polity))]", icon: Trophy },
+                        ].map((stat) => (
+                          <Card key={stat.label} className="glass-card text-center p-4">
+                            <stat.icon className={cn("h-4 w-4 mx-auto mb-1", stat.color)} />
+                            <p className={cn("text-2xl font-bold", stat.color)}>{stat.value}</p>
+                            <p className="text-xs text-muted-foreground">{stat.label}</p>
+                          </Card>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {reviseState === "review" && currentReviseCard && (
+                    <motion.div
+                      key={`revise-review-${reviseIdx}`}
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                    >
+                      <div className="flex items-center gap-3 mb-4">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setReviseState("queue")}>
+                          <ArrowLeft className="h-4 w-4" />
+                        </Button>
+                        <div className="flex-1">
+                          <p className="text-xs text-muted-foreground">
+                            Card {reviseIdx + 1} of {dueCards.length}
+                          </p>
+                        </div>
+                        <Badge variant="outline" className="text-[10px]">
+                          Interval: {currentReviseCard.interval_days}d
+                        </Badge>
+                      </div>
+
+                      <Card className="glass-card mb-4">
+                        <CardContent className="p-5">
+                          <Badge className="mb-3 text-[10px]">{currentReviseCard.mcq.topic}</Badge>
+                          <p className="text-base font-medium text-foreground leading-relaxed mb-1">
+                            {currentReviseCard.mcq.question}
+                          </p>
+                          {currentReviseCard.mcq.statements && (
+                            <ol className="list-decimal list-inside text-sm text-muted-foreground space-y-1 mt-2 mb-3">
+                              {currentReviseCard.mcq.statements.map((s: string, i: number) => (
+                                <li key={i}>{s}</li>
+                              ))}
+                            </ol>
+                          )}
+
+                          <div className="space-y-2 mt-4">
+                            {currentReviseCard.mcq.options.map((opt: string, i: number) => {
+                              const isCorrect = i === currentReviseCard.mcq.correctIndex;
+                              const isSelected = reviseSelectedOption === i;
+                              return (
+                                <button
+                                  key={i}
+                                  onClick={() => handleReviseOptionSelect(i)}
+                                  disabled={reviseRevealed}
+                                  className={cn(
+                                    "w-full text-left p-3 rounded-xl text-sm border transition-all",
+                                    !reviseRevealed && "hover:bg-accent/5 border-border",
+                                    reviseRevealed && isCorrect && "border-[hsl(var(--gs-economy))] bg-[hsl(var(--gs-economy))]/10",
+                                    reviseRevealed && isSelected && !isCorrect && "border-destructive bg-destructive/10",
+                                    reviseRevealed && !isSelected && !isCorrect && "opacity-50 border-border"
+                                  )}
+                                >
+                                  <span className="flex items-center gap-2">
+                                    <span className="text-muted-foreground text-xs font-mono w-5">
+                                      {String.fromCharCode(65 + i)}.
+                                    </span>
+                                    <span className={cn(reviseRevealed && isCorrect && "font-semibold text-foreground")}>
+                                      {opt}
+                                    </span>
+                                    {reviseRevealed && isCorrect && <CheckCircle2 className="h-4 w-4 text-[hsl(var(--gs-economy))] ml-auto shrink-0" />}
+                                    {reviseRevealed && isSelected && !isCorrect && <XCircle className="h-4 w-4 text-destructive ml-auto shrink-0" />}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {reviseRevealed && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 8 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="mt-4 p-3 bg-muted/50 rounded-xl"
+                            >
+                              <p className="text-xs font-semibold text-foreground mb-1">Explanation</p>
+                              <p className="text-xs text-muted-foreground leading-relaxed">
+                                {currentReviseCard.mcq.explanation}
+                              </p>
+                            </motion.div>
+                          )}
+                        </CardContent>
+                      </Card>
+
+                      {reviseRevealed && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="space-y-2"
+                        >
+                          <p className="text-xs text-muted-foreground text-center mb-2">How well did you recall this?</p>
+                          <div className="grid grid-cols-3 gap-2">
+                            <Button
+                              variant="outline"
+                              onClick={() => handleReviseSubmit(1)}
+                              className="border-destructive/30 text-destructive hover:bg-destructive/10"
+                            >
+                              <XCircle className="h-4 w-4 mr-1" /> Forgot
+                            </Button>
+                            <Button
+                              variant="outline"
+                              onClick={() => handleReviseSubmit(3)}
+                              className="border-accent/30 text-accent hover:bg-accent/10"
+                            >
+                              <Brain className="h-4 w-4 mr-1" /> Hard
+                            </Button>
+                            <Button
+                              variant="outline"
+                              onClick={() => handleReviseSubmit(5)}
+                              className="border-[hsl(var(--gs-economy))]/30 text-[hsl(var(--gs-economy))] hover:bg-[hsl(var(--gs-economy))]/10"
+                            >
+                              <CheckCircle2 className="h-4 w-4 mr-1" /> Easy
+                            </Button>
+                          </div>
+                        </motion.div>
+                      )}
+                    </motion.div>
+                  )}
+
+                  {reviseState === "done" && (
+                    <motion.div
+                      key="revise-done"
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="text-center py-12"
+                    >
+                      <motion.div
+                        initial={{ rotate: -180, scale: 0 }}
+                        animate={{ rotate: 0, scale: 1 }}
+                        transition={{ type: "spring", delay: 0.1 }}
+                      >
+                        <Trophy className="h-16 w-16 text-accent mx-auto mb-4" />
+                      </motion.div>
+                      <h2 className="text-xl font-bold text-foreground mb-2">Session Complete!</h2>
+                      <p className="text-sm text-muted-foreground mb-6">
+                        You reviewed {reviseReviewedCount} card{reviseReviewedCount !== 1 ? "s" : ""}
+                      </p>
+                      <Button variant="outline" onClick={() => { refreshRevision(); setReviseState("queue"); }}>
+                        Back to Queue
+                      </Button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </TabsContent>
             </Tabs>
           </motion.div>

@@ -1,8 +1,9 @@
-import { Bookmark, Loader2, Trash2 } from "lucide-react";
+import { Bookmark, Loader2, Trash2, LogIn } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 
 const SavedPage = () => {
   const { user } = useAuth();
@@ -52,7 +53,18 @@ const SavedPage = () => {
       <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight mb-1">Saved</h1>
       <p className="text-sm text-muted-foreground mb-6">Your bookmarked issues</p>
 
-      {isLoading ? (
+      {!user ? (
+        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+          <Bookmark className="h-12 w-12 mb-4 opacity-30" />
+          <p className="text-sm font-medium text-foreground mb-1">Sign in to see your bookmarks</p>
+          <p className="text-xs mb-4">Bookmark articles from the daily brief and access them here</p>
+          <Button asChild>
+            <Link to="/auth" className="gap-2">
+              <LogIn className="h-4 w-4" /> Sign In
+            </Link>
+          </Button>
+        </div>
+      ) : isLoading ? (
         <div className="flex items-center justify-center py-20">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>

@@ -2,11 +2,13 @@ import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { IssueCard } from "@/components/issues/IssueCard";
-import { CheckCircle, Loader2, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
+import { CheckCircle, Loader2, ArrowRight, ChevronLeft, ChevronRight, Flame, Zap, BookOpen, TrendingUp } from "lucide-react";
 import { format, parseISO, addDays, subDays, isToday as isTodayFn } from "date-fns";
 import { DateStrip } from "@/components/dates/DateStrip";
 import { DateCalendarPicker } from "@/components/dates/DateCalendarPicker";
 import { useDateArticles } from "@/hooks/useDateArticles";
+import { useDashboardData } from "@/hooks/useDashboardData";
+import { useAuth } from "@/hooks/useAuth";
 
 const container = {
   hidden: { opacity: 0 },
@@ -21,6 +23,17 @@ const item = {
 const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const { user } = useAuth();
+  const dashData = useDashboardData();
+
+  // Compute accuracy for stats strip
+  const coveragePercent = (() => {
+    const topics = Object.values(dashData.topicCoverage);
+    if (topics.length === 0) return 0;
+    const total = topics.reduce((s, t) => s + t.total, 0);
+    const correct = topics.reduce((s, t) => s + t.correct, 0);
+    return total > 0 ? Math.round((correct / total) * 100) : 0;
+  })();
 
   // Read date from URL param, validate it
   const dateParam = searchParams.get("date");
@@ -110,6 +123,24 @@ const Index = () => {
           )}
         </div>
       </div>
+
+      {/* Dashboard Stats Strip — shown only when signed in */}
+      {user && !dashData.loading && (
+        <div className="grid grid-cols-4 gap-2 mb-3 sm:mb-4">
+          {[
+            { label: "Streak", value: `${dashData.currentStreak}d`, icon: Flame, color: "text-accent" },
+            { label: "XP", value: String(dashData.totalXP), icon: Zap, color: "text-[hsl(var(--gs-polity))]" },
+            { label: "Quizzes", value: String(dashData.quizzesCompleted), icon: BookOpen, color: "text-[hsl(var(--gs-economy))]" },
+            { label: "Accuracy", value: `${coveragePercent}%`, icon: TrendingUp, color: "text-[hsl(var(--gs-science))]" },
+          ].map((stat) => (
+            <div key={stat.label} className="glass-card rounded-xl p-2.5 text-center">
+              <stat.icon className={`h-3.5 w-3.5 mx-auto mb-0.5 ${stat.color}`} />
+              <p className={`text-sm font-bold ${stat.color}`}>{stat.value}</p>
+              <p className="text-[10px] text-muted-foreground">{stat.label}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Date Strip */}
       <DateStrip
