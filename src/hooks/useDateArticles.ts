@@ -14,6 +14,8 @@ export type TieredArticle = {
   staticAnchor?: string;
   isHero: boolean;
   depthTier: string | null;
+  sourceName?: string;
+  layer?: string;
 };
 
 export const TIER_ORDER = ["deep_analysis", "important_facts", "rapid_fire"] as const;
@@ -25,7 +27,7 @@ export const TIER_LABELS: Record<string, string> = {
 };
 
 const SELECT_FIELDS =
-  "id, title, summary, syllabus_tags, source_name, source_url, published_at, upsc_relevance, depth_tier, gs_papers";
+  "id, title, summary, syllabus_tags, source_name, source_url, published_at, upsc_relevance, depth_tier, gs_papers, layer";
 
 function mapArticle(a: any): TieredArticle {
   const gsPapers: string[] = a.gs_papers ?? [];
@@ -44,6 +46,8 @@ function mapArticle(a: any): TieredArticle {
     staticAnchor: undefined,
     isHero: false,
     depthTier: a.depth_tier || null,
+    sourceName: a.source_name,
+    layer: a.layer,
   };
 }
 

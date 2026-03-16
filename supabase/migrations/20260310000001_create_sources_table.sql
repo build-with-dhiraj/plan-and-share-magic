@@ -116,7 +116,31 @@ INSERT INTO public.sources (name, label, category, layer, trust_weight, ingest_m
 -- (Kept intact: PIB, RBI, PRS, NITI Aayog, Budget, Supreme Court, Yojana, Kurukshetra, Science Reporter, MEA, MoEF, ISRO)
 
 -- ──────────── LAYER B: CONTEXT / HIGH-QUALITY MEDIA ────────────
--- (REMOVED: Generic news sources like The Hindu, Indian Express, LiveMint are no longer scraped directly to reduce noise and legal risk. We rely on PW IAS daily summaries instead.)
+
+('indian_express', 'The Indian Express', 'context_media', 'B', 0.90, 'rss',
+ 'https://indianexpress.com', '{"https://indianexpress.com/feed/"}',
+ 30, false, false, true, 'medium', '{}',
+ NULL, 'Standard daily feed'),
+
+('livemint', 'LiveMint', 'context_media', 'B', 0.90, 'rss',
+ 'https://www.livemint.com', '{"https://www.livemint.com/rss/news"}',
+ 30, false, false, true, 'medium', '{}',
+ NULL, 'Economy/Business context'),
+
+('down_to_earth', 'Down To Earth', 'context_media', 'B', 0.88, 'firecrawl',
+ 'https://www.downtoearth.org.in', '{"https://www.downtoearth.org.in/news"}',
+ 120, false, false, true, 'medium', '{}',
+ NULL, 'Environment focus'),
+
+('business_standard', 'Business Standard', 'context_media', 'B', 0.88, 'rss',
+ 'https://www.business-standard.com', '{"https://www.business-standard.com/rss/latest-news.xml"}',
+ 60, false, false, true, 'medium', '{}',
+ NULL, 'Economy/Business context'),
+
+('the_hindu', 'The Hindu', 'context_media', 'B', 0.92, 'rss',
+ 'https://www.thehindu.com', '{"https://www.thehindu.com/feeder/default.rss"}',
+ 30, false, false, true, 'medium', '{}',
+ NULL, 'Primary paper, excerpt only'),
 
 -- ──────────── LAYER C: UPSC BENCHMARK / COACHING (PRIMARY PIPELINE) ────────────
 
@@ -140,15 +164,55 @@ INSERT INTO public.sources (name, label, category, layer, trust_weight, ingest_m
  120, false, false, true, 'low', '{}',
  NULL, 'Primary source. Deep analysis and mains angles'),
 
-('drishti_ias', 'Drishti IAS', 'upsc_benchmark', 'C', 0.85, 'firecrawl',
- 'https://www.drishtiias.com', '{"https://www.drishtiias.com/current-affairs-news-analysis-editorials"}',
- 120, false, false, true, 'medium', '{}',
- 'current-affairs|news-analysis', 'Secondary benchmark'),
+('drishti_ias', 'Drishti IAS', 'upsc_benchmark', 'C', 0.82, 'rss',
+ 'https://www.drishtiias.com', '{"https://www.drishtiias.com/rss"}',
+ 60, false, false, true, 'medium', '{}',
+ NULL, 'Secondary benchmark, RSS usage preferred'),
 
-('superkalam', 'SuperKalam', 'upsc_benchmark', 'C', 0.85, 'firecrawl',
+('vision_ias', 'Vision IAS', 'upsc_benchmark', 'C', 0.84, 'firecrawl',
+ 'https://visionias.in', '{"https://visionias.in/current-affairs/"}',
+ 120, false, false, true, 'medium', '{}',
+ NULL, 'Major UPSC benchmark'),
+
+('forum_ias', 'ForumIAS', 'upsc_benchmark', 'C', 0.82, 'firecrawl',
+ 'https://forumias.com', '{"https://blog.forumias.com/category/current-affairs"}',
+ 120, false, false, true, 'medium', '{}',
+ NULL, 'Secondary benchmark'),
+
+('insights_ias', 'InsightsIAS', 'upsc_benchmark', 'C', 0.82, 'firecrawl',
+ 'https://www.insightsonindia.com', '{"https://www.insightsonindia.com/category/secure-2024/"}',
+ 120, false, false, true, 'medium', '{}',
+ NULL, 'Secondary benchmark'),
+
+('superkalam', 'SuperKalam', 'upsc_benchmark', 'C', 0.80, 'firecrawl',
  'https://superkalam.com', '{"https://superkalam.com/"}',
- 180, false, false, true, 'medium', '{}',
+ 120, false, false, true, 'medium', '{}',
  NULL, 'Secondary AI benchmark'),
+
+('newsbook_ai', 'NewsbookAI', 'upsc_benchmark', 'C', 0.78, 'firecrawl',
+ 'https://newsbook.ai', '{"https://newsbook.ai/feed/"}',
+ 180, false, false, true, 'medium', '{}',
+ NULL, 'Secondary benchmark'),
+
+('clear_ias', 'ClearIAS', 'upsc_benchmark', 'C', 0.76, 'firecrawl',
+ 'https://www.clearias.com', '{"https://www.clearias.com/current-affairs/"}',
+ 180, false, false, true, 'medium', '{}',
+ NULL, 'Secondary benchmark'),
+
+('civilsdaily', 'Civilsdaily', 'upsc_benchmark', 'C', 0.76, 'firecrawl',
+ 'https://www.civilsdaily.com', '{"https://www.civilsdaily.com/category/current-affairs/"}',
+ 180, false, false, true, 'medium', '{}',
+ NULL, 'Secondary benchmark'),
+
+('iasbaba', 'IASbaba', 'upsc_benchmark', 'C', 0.78, 'firecrawl',
+ 'https://iasbaba.com', '{"https://iasbaba.com/current-affairs/"}',
+ 180, false, false, true, 'medium', '{}',
+ NULL, 'Secondary benchmark'),
+
+('vajiram_ravi', 'Vajiram & Ravi', 'upsc_benchmark', 'C', 0.80, 'firecrawl',
+ 'https://vajiramias.com', '{"https://vajiramias.com/current-affairs/"}',
+ 180, false, false, true, 'medium', '{}',
+ NULL, 'Secondary benchmark'),
 
 -- ──────────── LAYER D: GLOBAL REPORTS & INDICES ────────────
 

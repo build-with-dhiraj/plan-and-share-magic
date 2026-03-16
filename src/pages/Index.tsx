@@ -34,11 +34,7 @@ const QUICK_FILTERS = [
   { key: "GS-4", label: "GS-IV", color: "gs-tag-ethics" },
 ] as const;
 
-const TIER_PRIORITY: Record<string, number> = {
-  deep_analysis: 0,
-  important_facts: 1,
-  rapid_fire: 2,
-};
+
 
 const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -104,13 +100,9 @@ const Index = () => {
   const nextDateStr = format(nextDate, "yyyy-MM-dd");
   const canGoNext = nextDate <= new Date();
 
-  // Sort articles by tier priority (high-relevance first)
+  // No need to sort by depth tier anymore
   const sortedArticles = useMemo(() =>
-    [...articles].sort((a, b) => {
-      const pa = TIER_PRIORITY[a.depthTier ?? ""] ?? 3;
-      const pb = TIER_PRIORITY[b.depthTier ?? ""] ?? 3;
-      return pa - pb;
-    }),
+    [...articles],
     [articles]
   );
 
@@ -338,29 +330,42 @@ const Index = () => {
         </div>
       ) : (
         <motion.div className="space-y-8" variants={container} initial="hidden" animate="show">
-          {["deep_analysis", "important_facts", "rapid_fire"].map((tier) => {
-            const tierArticles = filteredArticles.filter((a) => a.depthTier === tier);
-            if (tierArticles.length === 0) return null;
-
-            const TIER_META = {
-              deep_analysis: { label: "In Depth", color: "text-accent" },
-              important_facts: { label: "Key Facts", color: "text-primary" },
-              rapid_fire: { label: "Quick Bites", color: "text-muted-foreground" },
-            }[tier as keyof typeof TIER_META];
+          {[
+            {
+              id: "pw-ias",
+              label: "PW-IAS",
+              color: "text-accent",
+              filterFn: (a: any) => a.sourceName?.startsWith("pw_onlyias_"),
+            },
+            {
+              id: "other-coachings",
+              label: "Other Coachings",
+              color: "text-primary",
+              filterFn: (a: any) => a.layer === "C" && !a.sourceName?.startsWith("pw_onlyias_"),
+            },
+            {
+              id: "other-news",
+              label: "In Other News",
+              color: "text-muted-foreground",
+              filterFn: (a: any) => ["A", "B", "D"].includes(a.layer || ""),
+            },
+          ].map((section) => {
+            const sectionArticles = filteredArticles.filter(section.filterFn);
+            if (sectionArticles.length === 0) return null;
 
             return (
-              <section key={tier} className="space-y-4">
+              <section key={section.id} className="space-y-4">
                 <div className="flex items-center gap-3">
-                  <h2 className={cn("text-sm font-bold uppercase tracking-wider", TIER_META.color)}>
-                    {TIER_META.label}
+                  <h2 className={cn("text-sm font-bold uppercase tracking-wider", section.color)}>
+                    {section.label}
                   </h2>
                   <div className="h-px bg-border flex-1" />
                   <Badge variant="outline" className="text-[10px] font-bold">
-                    {tierArticles.length}
+                    {sectionArticles.length}
                   </Badge>
                 </div>
                 <div className="space-y-3 sm:space-y-4">
-                  {tierArticles.map((issue) => (
+                  {sectionArticles.map((issue) => (
                     <motion.div key={issue.id} variants={item}>
                       <IssueCard {...issue} />
                     </motion.div>
