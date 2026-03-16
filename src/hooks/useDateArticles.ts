@@ -54,7 +54,7 @@ function mapArticle(a: any): TieredArticle {
 function filterByRelevance(data: any[]): any[] {
   return data.filter((a) => {
     if (a.upsc_relevance === null || a.upsc_relevance === undefined) return true;
-    return Number(a.upsc_relevance) >= 0.4;
+    return Number(a.upsc_relevance) >= 0.1;
   });
 }
 
@@ -105,7 +105,6 @@ async function fetchArticlesForToday(): Promise<TieredArticle[]> {
     .select(SELECT_FIELDS)
     .eq("processed", true)
     .not("summary", "is", null)
-    .not("layer", "eq", "C")
     .or(`published_at.gte.${cutoffISO},and(published_at.is.null,ingested_at.gte.${cutoffISO})`)
     .order("ingested_at", { ascending: false })
     .limit(30);
@@ -117,7 +116,6 @@ async function fetchArticlesForToday(): Promise<TieredArticle[]> {
       .select(SELECT_FIELDS)
       .eq("processed", true)
       .not("summary", "is", null)
-      .not("layer", "eq", "C")
       .order("ingested_at", { ascending: false })
       .limit(30);
     data = fallback.data;
@@ -140,7 +138,6 @@ async function fetchArticlesForDate(dateString: string): Promise<TieredArticle[]
     .select(SELECT_FIELDS)
     .eq("processed", true)
     .not("summary", "is", null)
-    .not("layer", "eq", "C")
     .or(`and(published_at.gte.${dayStart},published_at.lt.${dayEnd}),and(published_at.is.null,ingested_at.gte.${dayStart},ingested_at.lt.${dayEnd})`)
     .order("ingested_at", { ascending: false })
     .limit(30);
