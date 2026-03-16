@@ -43,17 +43,20 @@ const SELECT_FIELDS =
   "id, title, summary, syllabus_tags, source_name, source_url, published_at, upsc_relevance, depth_tier, gs_papers";
 
 function mapArticle(a: any): TieredArticle {
+  const gsPapers: string[] = a.gs_papers ?? [];
+  // Lowercase GS paper names for cross-type dedup (e.g. "Essay" in gsPapers vs "essay" in gsTags)
+  const gsPapersLower = new Set(gsPapers.map((p: string) => p.toLowerCase()));
   const gsTags: GsTag[] = [...new Set(
     (a.syllabus_tags ?? [])
       .map((t: string) => normalizeTag(t))
       .filter(Boolean) as GsTag[]
-  )];
+  )].filter(tag => !gsPapersLower.has(tag));
   return {
     id: a.id,
     title: a.title,
     synopsis: a.summary || "",
     gsTags: gsTags.length > 0 ? gsTags : (["polity"] as GsTag[]),
-    gsPapers: a.gs_papers ?? [],
+    gsPapers,
     sourceCount: 1,
     confidence: null,
     staticAnchor: undefined,
@@ -110,17 +113,18 @@ async function fetchArticlesForToday(): Promise<TieredArticle[]> {
   cutoff.setHours(cutoff.getHours() - 36);
   const cutoffISO = cutoff.toISOString();
 
+  // Fetch articles with published_at in window OR ingested recently with null published_at
   let { data } = await supabase
     .from("articles")
     .select(SELECT_FIELDS)
     .eq("processed", true)
     .not("summary", "is", null)
     .not("layer", "eq", "C")
-    .gte("published_at", cutoffISO)
-    .order("published_at", { ascending: false })
+    .or(`published_at.gte.${cutoffISO},and(published_at.is.null,ingested_at.gte.${cutoffISO})`)
+    .order("ingested_at", { ascending: false })
     .limit(30);
 
-  // Fallback: get the most recent processed articles
+  // Fallback: get the most recent processed articles regardless of date
   if (!data || data.length === 0) {
     const fallback = await supabase
       .from("articles")
@@ -128,7 +132,7 @@ async function fetchArticlesForToday(): Promise<TieredArticle[]> {
       .eq("processed", true)
       .not("summary", "is", null)
       .not("layer", "eq", "C")
-      .order("published_at", { ascending: false })
+      .order("ingested_at", { ascending: false })
       .limit(30);
     data = fallback.data;
   }
@@ -144,15 +148,15 @@ async function fetchArticlesForDate(dateString: string): Promise<TieredArticle[]
   const nextDay = format(addDays(parseISO(dateString), 1), "yyyy-MM-dd");
   const dayEnd = `${nextDay}T00:00:00+05:30`;
 
+  // Include articles published OR ingested within the date range
   const { data } = await supabase
     .from("articles")
     .select(SELECT_FIELDS)
     .eq("processed", true)
     .not("summary", "is", null)
     .not("layer", "eq", "C")
-    .gte("published_at", dayStart)
-    .lt("published_at", dayEnd)
-    .order("published_at", { ascending: false })
+    .or(`and(published_at.gte.${dayStart},published_at.lt.${dayEnd}),and(published_at.is.null,ingested_at.gte.${dayStart},ingested_at.lt.${dayEnd})`)
+    .order("ingested_at", { ascending: false })
     .limit(30);
 
   const filtered = filterByRelevance(data ?? []);

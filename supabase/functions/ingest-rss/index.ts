@@ -885,7 +885,7 @@ Deno.serve(async (req) => {
                             source_url: listingUrl,
                             title: pageTitle,
                             content,
-                            published_at: null,
+                            published_at: new Date().toISOString(),
                             layer: source.layer,
                             syllabus_tags: source.default_tags || [],
                             processed: false,
@@ -999,7 +999,7 @@ Deno.serve(async (req) => {
                   source_url: articleUrl,
                   title: articleTitle,
                   content,
-                  published_at: null, // Phase 3d: don't fake dates — null is honest
+                  published_at: new Date().toISOString(), // Use ingestion time as published_at for scraped articles
                   layer: source.layer,
                   syllabus_tags: source.default_tags || [],
                   processed: false,

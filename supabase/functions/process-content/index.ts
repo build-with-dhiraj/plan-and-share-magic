@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
       .select("*")
       .eq("processed", false)
       .not("layer", "eq", "C")
-      .order("ingested_at", { ascending: true })
+      .order("ingested_at", { ascending: false }) // Newest first — prioritize fresh content
       .limit(batchSize);
 
     if (fetchErr) throw fetchErr;
@@ -401,6 +401,14 @@ IMPORTANT: All content must be directly derived from the article. No hallucinati
             hyperlinked_terms: extracted.hyperlinked_terms || [],
           })
           .eq("id", article.id);
+
+        // ──── PYQ LINKING: Match article to Previous Year Questions ────
+        try {
+          await supabase.rpc("link_pyqs_for_article", { p_article_id: article.id });
+        } catch (pyqErr) {
+          // Non-fatal: PYQ linking failure shouldn't block article processing
+          console.warn(`PYQ linking skipped for ${article.id}:`, pyqErr);
+        }
 
         // Insert facts
         if (facts.length > 0) {

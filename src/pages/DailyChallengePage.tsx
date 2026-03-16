@@ -204,7 +204,7 @@ const DailyChallengePage = () => {
                 <Trophy className="h-8 w-8 text-accent" />
               </motion.div>
               <div>
-                <h1 className="text-xl font-bold text-foreground">Today's CA Quiz</h1>
+                <h1 className="text-xl font-bold text-foreground">Daily UPSC Quiz</h1>
                 <p className="text-sm text-muted-foreground flex items-center justify-center gap-1.5 mt-1">
                   <Calendar className="h-3.5 w-3.5" /> {todayDate}
                 </p>
