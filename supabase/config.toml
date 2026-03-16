@@ -1,4 +1,4 @@
-project_id = "zblmdfoddvqlaadqhlkq"
+project_id = "ligyvjuwvjeiiywxgewy"
 
 [functions.ingest-rss]
 verify_jwt = false
@@ -10,4 +10,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.mentor-chat]
+verify_jwt = false
+
+[functions.backfill-articles]
 verify_jwt = false
