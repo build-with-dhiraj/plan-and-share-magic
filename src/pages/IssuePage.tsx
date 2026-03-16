@@ -449,7 +449,7 @@ function ArticleFeedback({ articleId }: { articleId: string }) {
     setSubmitted(vote);
     // Fire-and-forget — store in article_feedback table (best-effort)
     try {
-      await supabase.from("article_feedback").insert({
+      await (supabase as any).from("article_feedback").insert({
         article_id: articleId,
         vote,
         created_at: new Date().toISOString(),
