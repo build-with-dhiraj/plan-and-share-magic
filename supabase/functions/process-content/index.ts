@@ -89,7 +89,6 @@ Deno.serve(async (req) => {
       .from("articles")
       .select("*")
       .eq("processed", false)
-      .not("layer", "eq", "C")
       .order("ingested_at", { ascending: false }) // Newest first — prioritize fresh content
       .limit(batchSize);
 
