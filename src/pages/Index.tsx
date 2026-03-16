@@ -209,14 +209,14 @@ const Index = () => {
                 transition={{ duration: 0.2 }}
                 className="overflow-hidden"
               >
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 gap-2 mt-2">
                   {[
-                    { label: "Total XP", value: String(dashData.totalXP), icon: Zap, color: "text-accent" },
-                    { label: "Quizzes", value: String(dashData.quizzesCompleted), icon: BookOpen, color: "text-[hsl(var(--gs-economy))]" },
-                    { label: "Accuracy", value: `${coveragePercent}%`, icon: TrendingUp, color: "text-[hsl(var(--gs-science))]" },
+                    { label: "Total XP", value: `${dashData.totalXP}`, icon: Zap, color: "text-accent" },
+                    { label: "Quizzes", value: `${dashData.quizzesCompleted}`, icon: BookOpen, color: "text-gs-economy" },
+                    { label: "Accuracy", value: `${coveragePercent}%`, icon: TrendingUp, color: "text-gs-science" },
                   ].map((stat) => (
                     <div key={stat.label} className="glass-card rounded-xl p-2.5 text-center">
-                      <stat.icon className={`h-3.5 w-3.5 mx-auto mb-0.5 ${stat.color}`} />
+                      <stat.icon className={`h-4 w-4 mx-auto mb-1 ${stat.color}`} />
                       <p className={`text-base font-bold ${stat.color}`}>{stat.value}</p>
                       <p className="text-xs text-muted-foreground">{stat.label}</p>
                     </div>

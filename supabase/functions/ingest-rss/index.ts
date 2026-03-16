@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { YoutubeTranscript } from "https://esm.sh/youtube-transcript@1.2.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -149,8 +150,10 @@ function isNavUrl(url: string): boolean {
 // XML helpers for RSS parsing
 // ═══════════════════════════════════════════
 function extractTag(xml: string, tag: string): string {
+  // Support namespaced tags too, like yt:videoId
+  const safeTag = tag.replace(/:/g, "\\:");
   const re = new RegExp(
-    `<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]></${tag}>|<${tag}[^>]*>([^<]*)</${tag}>`
+    `<${safeTag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]></${safeTag}>|<${safeTag}[^>]*>([^<]*)</${safeTag}>`
   );
   const m = xml.match(re);
   return (m?.[1] ?? m?.[2] ?? "").trim();
@@ -813,6 +816,103 @@ Deno.serve(async (req) => {
                 } else {
                   totalIngested++;
                   sourceStats[source.name].ingested++;
+                }
+              }
+            } catch (e) {
+              const msg = `${source.name}: ${e instanceof Error ? e.message : "Unknown error"}`;
+              errors.push(msg);
+              sourceError = msg;
+            }
+          }
+        } else if (source.ingest_method === "youtube") {
+          // ──── YOUTUBE TRANSCRIPT INGESTION ────
+          for (const url of source.feed_urls) {
+            try {
+              const controller = new AbortController();
+              const timeout = setTimeout(() => controller.abort(), 8000);
+              const resp = await fetch(url, { signal: controller.signal });
+              clearTimeout(timeout);
+              if (!resp.ok) {
+                errors.push(`${source.name}: HTTP ${resp.status} for ${url}`);
+                sourceError = `HTTP ${resp.status} for ${url}`;
+                continue;
+              }
+              const xml = await resp.text();
+              const items = extractItems(xml);
+
+              for (const item of items.slice(0, 10)) { // limit to 10 latest videos
+                const videoId = extractTag(item, "yt:videoId");
+                const title = extractTag(item, "title");
+                const pubDate = extractTag(item, "published") || extractTag(item, "pubDate");
+
+                if (!videoId || !title) continue;
+                if (isJunkTitle(title)) {
+                  totalSkipped++;
+                  continue;
+                }
+
+                // Skip shorts or very short videos by heuristic (shorts often have "#shorts" in title)
+                if (title.toLowerCase().includes("#shorts")) {
+                  totalSkipped++;
+                  continue;
+                }
+
+                // Check if already exists
+                const link = `https://www.youtube.com/watch?v=${videoId}`;
+                const { data: existing } = await supabase
+                  .from("articles")
+                  .select("id")
+                  .eq("source_url", link)
+                  .maybeSingle();
+
+                if (existing) {
+                  totalSkipped++;
+                  continue;
+                }
+
+                // Fetch Transcript
+                let fullContent = "";
+                try {
+                  const transcript = await YoutubeTranscript.fetchTranscript(videoId);
+                  if (transcript && transcript.length > 0) {
+                    // Convert transcript segments to a readable text block
+                    fullContent = transcript.map((t: any) => t.text).join(" ");
+                  }
+                } catch (err: any) {
+                  // e.g. "Transcript is disabled on this video"
+                  console.warn(`Could not fetch transcript for ${videoId}: ${err.message}`);
+                  totalSkipped++;
+                  continue;
+                }
+
+                if (!fullContent || fullContent.length < 200) {
+                  totalSkipped++;
+                  continue; // Too short to be a meaningful lesson
+                }
+
+                // Truncate to avoid exploding context windows (keep first ~3000 words max)
+                if (fullContent.length > 20000) {
+                  fullContent = fullContent.substring(0, 20000) + "\n\n[Transcript truncated due to length]";
+                }
+
+                const { error } = await supabase.from("articles").insert({
+                  source_name: source.name,
+                  source_url: link,
+                  title,
+                  content: fullContent,
+                  published_at: pubDate ? new Date(pubDate).toISOString() : new Date().toISOString(),
+                  layer: source.layer,
+                  syllabus_tags: source.default_tags || [],
+                  processed: false,
+                });
+
+                if (error) {
+                  totalSkipped++;
+                } else {
+                  totalIngested++;
+                  totalScraped++; // transcribing counts as scraping
+                  sourceStats[source.name].ingested++;
+                  sourceStats[source.name].scraped++;
                 }
               }
             } catch (e) {

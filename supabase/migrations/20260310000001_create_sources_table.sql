@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS public.sources (
   category TEXT NOT NULL CHECK (category IN ('canonical', 'context_media', 'upsc_benchmark', 'global_report')),
   layer TEXT NOT NULL CHECK (layer IN ('A', 'B', 'C', 'D')),
   trust_weight NUMERIC(3,2) NOT NULL DEFAULT 0.50,
-  ingest_method TEXT NOT NULL CHECK (ingest_method IN ('rss', 'firecrawl', 'pdf')),
+  ingest_method TEXT NOT NULL CHECK (ingest_method IN ('rss', 'firecrawl', 'pdf', 'youtube')),
   base_url TEXT,
   feed_urls TEXT[] NOT NULL DEFAULT '{}',
   crawl_frequency_minutes INTEGER NOT NULL DEFAULT 360,
@@ -112,104 +112,43 @@ INSERT INTO public.sources (name, label, category, layer, trust_weight, ingest_m
  360, true, true, false, 'low', '{"Science"}',
  NULL, NULL),
 
+-- ──────────── LAYER A: CANONICAL / AUTHORITATIVE ────────────
+-- (Kept intact: PIB, RBI, PRS, NITI Aayog, Budget, Supreme Court, Yojana, Kurukshetra, Science Reporter, MEA, MoEF, ISRO)
+
 -- ──────────── LAYER B: CONTEXT / HIGH-QUALITY MEDIA ────────────
+-- (REMOVED: Generic news sources like The Hindu, Indian Express, LiveMint are no longer scraped directly to reduce noise and legal risk. We rely on PW IAS daily summaries instead.)
 
-('the_hindu', 'The Hindu', 'context_media', 'B', 0.90, 'rss',
- 'https://www.thehindu.com', '{"https://www.thehindu.com/news/national/feeder/default.rss","https://www.thehindu.com/business/Economy/feeder/default.rss","https://www.thehindu.com/sci-tech/science/feeder/default.rss","https://www.thehindu.com/news/international/feeder/default.rss"}',
- 30, false, false, true, 'medium', '{}',
- NULL, 'Legal risk: only store headline + AI summary, not full text'),
+-- ──────────── LAYER C: UPSC BENCHMARK / COACHING (PRIMARY PIPELINE) ────────────
 
-('indian_express', 'The Indian Express', 'context_media', 'B', 0.90, 'rss',
- 'https://indianexpress.com', '{"https://indianexpress.com/section/india/feed/","https://indianexpress.com/section/explained/feed/","https://indianexpress.com/section/opinion/feed/","https://indianexpress.com/section/business/economy/feed/"}',
- 30, false, false, true, 'medium', '{}',
- NULL, NULL),
+('pw_onlyias_youtube', 'PW OnlyIAS Videos', 'upsc_benchmark', 'C', 0.95, 'youtube',
+ 'https://www.youtube.com/@OnlyIasnothingelse', '{"https://www.youtube.com/feeds/videos.xml?channel_id=UCvEEQvH2-e2gA_rC5qXq2vA"}',
+ 120, false, false, true, 'low', '{}',
+ NULL, 'Primary source. Video transcripts from PW OnlyIAS'),
 
-('livemint', 'LiveMint', 'context_media', 'B', 0.90, 'rss',
- 'https://www.livemint.com', '{"https://www.livemint.com/rss/economy","https://www.livemint.com/rss/politics","https://www.livemint.com/rss/science"}',
- 30, false, false, true, 'medium', '{}',
- NULL, NULL),
+('pw_onlyias_daily', 'PW OnlyIAS Daily News', 'upsc_benchmark', 'C', 0.95, 'firecrawl',
+ 'https://pwonlyias.com', '{"https://pwonlyias.com/daily-news/"}',
+ 60, false, false, true, 'low', '{}',
+ NULL, 'Primary source. Curated daily news from Hindu/Express by PW'),
 
-('down_to_earth', 'Down To Earth', 'context_media', 'B', 0.88, 'firecrawl',
- 'https://www.downtoearth.org.in', '{"https://www.downtoearth.org.in/environment","https://www.downtoearth.org.in/science-technology"}',
- 120, false, false, true, 'medium', '{"Environment"}',
- NULL, 'RSS feed broken (404); use firecrawl'),
+('pw_onlyias_prelims', 'PW OnlyIAS Prelims Booster', 'upsc_benchmark', 'C', 0.95, 'firecrawl',
+ 'https://pwonlyias.com', '{"https://pwonlyias.com/prelims-booster/"}',
+ 120, false, false, true, 'low', '{}',
+ NULL, 'Primary source. Targeted prelims facts'),
 
-('business_standard', 'Business Standard', 'context_media', 'B', 0.88, 'firecrawl',
- 'https://www.business-standard.com', '{"https://www.business-standard.com/economy","https://www.business-standard.com/politics"}',
- 120, false, false, true, 'medium', '{"Economy"}',
- NULL, 'RSS returns 403; use firecrawl'),
+('pw_onlyias_editorial', 'PW OnlyIAS Editorials', 'upsc_benchmark', 'C', 0.95, 'firecrawl',
+ 'https://pwonlyias.com', '{"https://pwonlyias.com/editorial-discussion/"}',
+ 120, false, false, true, 'low', '{}',
+ NULL, 'Primary source. Deep analysis and mains angles'),
 
-('bbc_india', 'BBC India', 'context_media', 'B', 0.85, 'rss',
- 'https://www.bbc.com', '{"https://feeds.bbci.co.uk/news/world/asia/india/rss.xml"}',
- 60, false, false, true, 'low', '{"IR"}',
- NULL, NULL),
-
-('the_wire', 'The Wire', 'context_media', 'B', 0.85, 'firecrawl',
- 'https://thewire.in', '{"https://thewire.in/government","https://thewire.in/economy","https://thewire.in/environment"}',
- 120, false, false, true, 'medium', '{}',
- NULL, 'RSS feed returns HTML; use firecrawl'),
-
-('scroll', 'Scroll.in', 'context_media', 'B', 0.82, 'firecrawl',
- 'https://scroll.in', '{"https://scroll.in/latest"}',
- 120, false, false, true, 'medium', '{}',
- NULL, 'RSS feed 404; use firecrawl'),
-
-('epw', 'Economic & Political Weekly', 'context_media', 'B', 0.88, 'firecrawl',
- 'https://www.epw.in', '{"https://www.epw.in/"}',
- 360, false, false, true, 'medium', '{"Economy","Society"}',
- NULL, NULL),
-
-('frontline', 'Frontline', 'context_media', 'B', 0.85, 'firecrawl',
- 'https://frontline.thehindu.com', '{"https://frontline.thehindu.com/"}',
- 360, false, false, true, 'medium', '{}',
- NULL, NULL),
-
--- ──────────── LAYER C: UPSC BENCHMARK / COACHING ────────────
-
-('drishti_ias', 'Drishti IAS', 'upsc_benchmark', 'C', 0.82, 'firecrawl',
+('drishti_ias', 'Drishti IAS', 'upsc_benchmark', 'C', 0.85, 'firecrawl',
  'https://www.drishtiias.com', '{"https://www.drishtiias.com/current-affairs-news-analysis-editorials"}',
- 60, false, false, true, 'medium', '{}',
- 'current-affairs|news-analysis', 'No RSS available; scrape daily news page'),
-
-('vision_ias', 'Vision IAS', 'upsc_benchmark', 'C', 0.84, 'firecrawl',
- 'https://visionias.in', '{"https://visionias.in/resources/current-affairs"}',
  120, false, false, true, 'medium', '{}',
- NULL, NULL),
+ 'current-affairs|news-analysis', 'Secondary benchmark'),
 
-('forumias', 'ForumIAS', 'upsc_benchmark', 'C', 0.82, 'firecrawl',
- 'https://forumias.com', '{"https://forumias.com/blog/"}',
- 120, false, false, true, 'medium', '{}',
- NULL, NULL),
-
-('insights_ias', 'InsightsIAS', 'upsc_benchmark', 'C', 0.82, 'firecrawl',
- 'https://www.insightsonindia.com', '{"https://www.insightsonindia.com/category/current-affairs/"}',
- 120, false, false, true, 'medium', '{}',
- NULL, NULL),
-
-('iasbaba', 'IAS Baba', 'upsc_benchmark', 'C', 0.80, 'firecrawl',
- 'https://iasbaba.com', '{"https://iasbaba.com/current-affairs-for-ias-upsc-exams/"}',
- 120, false, false, true, 'medium', '{}',
- NULL, NULL),
-
-('superkalam', 'SuperKalam', 'upsc_benchmark', 'C', 0.80, 'firecrawl',
+('superkalam', 'SuperKalam', 'upsc_benchmark', 'C', 0.85, 'firecrawl',
  'https://superkalam.com', '{"https://superkalam.com/"}',
- 120, false, false, true, 'medium', '{}',
- NULL, NULL),
-
-('newsbookai', 'NewsbookAI', 'upsc_benchmark', 'C', 0.78, 'firecrawl',
- 'https://newsbookai.com', '{"https://newsbookai.com/"}',
  180, false, false, true, 'medium', '{}',
- NULL, NULL),
-
-('clearias', 'ClearIAS', 'upsc_benchmark', 'C', 0.76, 'firecrawl',
- 'https://www.clearias.com', '{"https://www.clearias.com/current-affairs/"}',
- 180, false, false, true, 'medium', '{}',
- NULL, NULL),
-
-('civilsdaily', 'CivilsDaily', 'upsc_benchmark', 'C', 0.76, 'firecrawl',
- 'https://www.civilsdaily.com', '{"https://www.civilsdaily.com/"}',
- 180, false, false, true, 'medium', '{}',
- NULL, NULL),
+ NULL, 'Secondary AI benchmark'),
 
 -- ──────────── LAYER D: GLOBAL REPORTS & INDICES ────────────
 

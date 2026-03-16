@@ -486,7 +486,18 @@ function ArticleFeedback({ articleId }: { articleId: string }) {
 // ── Interactive MCQ Card ────────────────────────────────────────
 function MCQCard({ mcq, index }: { mcq: any; index: number }) {
   const [selected, setSelected] = useState<number | null>(null);
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const revealed = selected !== null;
+
+  const handleOptionClick = (oi: number) => {
+    if (revealed) return;
+    if (!user) {
+      toast.error("Sign in to take quizzes", { action: { label: "Sign in", onClick: () => navigate("/auth", { state: { from: window.location.pathname } }) } });
+      return;
+    }
+    setSelected(oi);
+  };
 
   return (
     <div className="glass-card rounded-xl p-4">
@@ -507,7 +518,7 @@ function MCQCard({ mcq, index }: { mcq: any; index: number }) {
             <button
               key={oi}
               className={`w-full text-left text-xs px-3 py-2 rounded-lg border transition-colors ${style}`}
-              onClick={() => !revealed && setSelected(oi)}
+              onClick={() => handleOptionClick(oi)}
               disabled={revealed}
             >
               {String.fromCharCode(65 + oi)}. {opt}
@@ -535,9 +546,20 @@ function MCQCard({ mcq, index }: { mcq: any; index: number }) {
 // ── PYQ Card — displays an official UPSC question ──────────────
 function PYQCard({ pyq }: { pyq: PYQQuestion }) {
   const [selected, setSelected] = useState<string | null>(null);
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const revealed = selected !== null;
   const isPrelims = pyq.exam_stage === "prelims" && pyq.question_type === "mcq";
   const paperLabel = pyq.paper_code.toUpperCase().replace("GS", "GS-");
+
+  const handleOptionClick = (optLabel: string) => {
+    if (revealed) return;
+    if (!user) {
+      toast.error("Sign in to practice PYQs", { action: { label: "Sign in", onClick: () => navigate("/auth", { state: { from: window.location.pathname } }) } });
+      return;
+    }
+    setSelected(optLabel);
+  };
 
   return (
     <div className="glass-card rounded-xl p-4 border-l-4 border-green-500/40">
@@ -593,7 +615,7 @@ function PYQCard({ pyq }: { pyq: PYQQuestion }) {
               <button
                 key={opt.option_label}
                 className={`w-full text-left text-xs px-3 py-2 rounded-lg border transition-colors ${style}`}
-                onClick={() => !revealed && setSelected(opt.option_label)}
+                onClick={() => handleOptionClick(opt.option_label)}
                 disabled={revealed}
               >
                 ({opt.option_label.toLowerCase()}) {opt.option_text}
@@ -743,7 +765,7 @@ function InlineMentorChat({
               <Bot className="h-8 w-8 text-muted-foreground/40 mx-auto" />
               <p className="text-sm text-muted-foreground">Sign in to ask questions</p>
               <Button asChild size="sm">
-                <Link to="/auth" className="gap-2">
+                <Link to="/auth" state={{ from: window.location.pathname }} className="gap-2">
                   <LogIn className="h-3.5 w-3.5" /> Sign In
                 </Link>
               </Button>
