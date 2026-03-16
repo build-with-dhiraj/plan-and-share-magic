@@ -16,29 +16,16 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { fetchRelatedPYQs, type PYQQuestion } from "@/hooks/usePYQBank";
 import { useMentorChat, type ChatMessage } from "@/hooks/useMentorChat";
+import { normalizeTag, TAG_DISPLAY, GS_PAPER_COLORS, normalizeAndDedup } from "@/lib/tags";
 
 function tagColorClass(tag: string): string {
-  const t = tag.toLowerCase();
-  if (t.includes("polity") || t.includes("governance")) return "gs-tag-polity";
-  if (t.includes("economy")) return "gs-tag-economy";
-  if (t.includes("environment") || t.includes("climate")) return "gs-tag-environment";
-  if (t.includes("international") || t === "ir") return "gs-tag-ir";
-  if (t.includes("science") || t.includes("tech")) return "gs-tag-science";
-  if (t.includes("ethics")) return "gs-tag-ethics";
-  if (t.includes("history") || t.includes("culture")) return "gs-tag-history";
-  if (t.includes("geography")) return "gs-tag-geography";
-  if (t.includes("society") || t.includes("social")) return "gs-tag-society";
+  const canonical = normalizeTag(tag);
+  if (canonical && TAG_DISPLAY[canonical]) return TAG_DISPLAY[canonical].className;
   return "";
 }
 
 function gsPaperColorClass(paper: string): string {
-  switch (paper) {
-    case "GS-1": return "gs-tag-history";
-    case "GS-2": return "gs-tag-polity";
-    case "GS-3": return "gs-tag-economy";
-    case "GS-4": return "gs-tag-ethics";
-    default: return "";
-  }
+  return GS_PAPER_COLORS[paper] || "";
 }
 
 // ── Auto-hyperlink UPSC terms (Drishti IAS style) ───────────────
@@ -178,7 +165,10 @@ const IssuePage = () => {
     );
   }
 
-  const tags = article.syllabus_tags ?? [];
+  // Deduplicate tags using the canonical taxonomy
+  const rawTags: string[] = article.syllabus_tags ?? [];
+  const dedupedTags = normalizeAndDedup(rawTags);
+  const tags = dedupedTags.map((t) => TAG_DISPLAY[t]?.label || t);
   const gsPapers: string[] = article.gs_papers ?? [];
   const prelimsKeywords: string[] = article.prelims_keywords ?? [];
   const mainsAngle: string | null = article.mains_angle ?? null;

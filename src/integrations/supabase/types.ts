@@ -83,6 +83,35 @@ export type Database = {
         }
         Relationships: []
       }
+      article_feedback: {
+        Row: {
+          article_id: string
+          created_at: string
+          id: string
+          vote: string
+        }
+        Insert: {
+          article_id: string
+          created_at?: string
+          id?: string
+          vote: string
+        }
+        Update: {
+          article_id?: string
+          created_at?: string
+          id?: string
+          vote?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_feedback_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookmarks: {
         Row: {
           created_at: string

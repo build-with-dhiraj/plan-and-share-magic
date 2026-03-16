@@ -62,14 +62,14 @@ export function DateStrip({ selectedDate, onDateSelect, onCalendarOpen }: DateSt
               )}
               style={{ scrollSnapAlign: "center" }}
             >
-              <span className="text-[10px] font-medium leading-tight">
+              <span className="text-xs font-medium leading-tight">
                 {isToday ? "Today" : format(date, "EEE")}
               </span>
               <span className={cn("text-sm font-semibold leading-tight", isToday && !isSelected && "text-foreground")}>
                 {format(date, "d")}
               </span>
               {!isToday && (
-                <span className="text-[9px] leading-tight opacity-70">
+                <span className="text-[10px] leading-tight opacity-70">
                   {format(date, "MMM")}
                 </span>
               )}

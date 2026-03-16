@@ -63,6 +63,10 @@
     --gs-geography: 185 55% 40%;
     --gs-society: 280 40% 50%;
 
+    /* Premium Feedback Colors */
+    --success: 142 66% 38%;
+    --success-foreground: 142 80% 95%;
+
     /* Glassmorphism */
     --glass-bg: 0 0% 100% / 0.7;
     --glass-border: 0 0% 100% / 0.3;
@@ -149,6 +153,14 @@
     box-shadow: 0 8px 32px hsl(var(--glass-shadow));
   }
 
+  .interactive-button {
+    @apply transition-all duration-150 active:scale-95;
+  }
+
+  .premium-gradient {
+    @apply bg-gradient-to-br from-white/50 to-white/10 dark:from-white/10 dark:to-transparent;
+  }
+
   .reading-prose {
     font-family: 'Source Serif 4', Georgia, 'Times New Roman', serif;
     font-size: 1.125rem;
@@ -174,5 +186,14 @@
   }
   .bg-gold {
     background-color: hsl(var(--gold));
+  }
+  .text-success {
+    color: hsl(var(--success));
+  }
+  .bg-success {
+    background-color: hsl(var(--success));
+  }
+  .border-success {
+    border-color: hsl(var(--success));
   }
 }

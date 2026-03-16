@@ -16,9 +16,16 @@ const SYLLABUS_TOPICS = [
   "IR",
   "Society",
   "Ethics",
-  "Art & Culture",
   "Essay",
 ];
+
+// Strict tag instruction appended to AI prompts to prevent synonym proliferation
+const TAG_INSTRUCTION = `CRITICAL: Use EXACTLY these canonical tag names: ${SYLLABUS_TOPICS.join(", ")}. 
+Do NOT use abbreviations like "S&T" — use "Science" instead. 
+Do NOT use full names like "International Relations" — use "IR" instead.
+Do NOT create organization-level tags like "ISRO" — map to parent subject "Science".
+Do NOT use "Governance" — map to "Polity". Do NOT use "Ecology" — map to "Environment".
+Each article should have 1-3 tags maximum. Prefer specificity over breadth.`;
 
 // Junk article detection — reject error pages the scraper picked up
 const JUNK_PATTERNS = [
@@ -237,7 +244,8 @@ Generate comprehensive UPSC study material:
 10. **facts**: 2-5 factual statements for Prelims (each with syllabus_tags and confidence 0.5-1.0)
 11. **hyperlinked_terms**: Extract 3-10 important UPSC terms, institutions, schemes, acts, or concepts mentioned in the article that a student might want to look up. For each, provide the term as it appears and a URL-friendly slug. Example: [{"term": "NITI Aayog", "slug": "niti-aayog"}, {"term": "Article 370", "slug": "article-370"}]
 
-IMPORTANT: All content must be directly derived from the article. No hallucination.`;
+IMPORTANT: All content must be directly derived from the article. No hallucination.
+${TAG_INSTRUCTION}`;
 
         const extractResponse = await fetch(AI_URL, {
           method: "POST",

@@ -8,11 +8,11 @@ import { useAuth } from "@/hooks/useAuth";
 const NAV_ITEMS = [
   { label: "Today", path: "/", icon: Newspaper },
   { label: "Practice", path: "/practice", icon: Target },
+  { label: "Saved", path: "/saved", icon: Bookmark },
 ];
 
 const MORE_ITEMS = [
   { label: "Search", path: "/search", icon: Search },
-  { label: "Saved", path: "/saved", icon: Bookmark },
   { label: "Settings", path: "/settings", icon: Settings },
 ];
 
@@ -38,7 +38,7 @@ export function MobileNav() {
               )}
             >
               <item.icon className={cn("h-[22px] w-[22px]", isActive && "text-accent")} strokeWidth={isActive ? 2.2 : 1.8} />
-              <span className={cn("text-[10px] leading-tight", isActive ? "font-semibold" : "font-medium")}>{item.label}</span>
+              <span className={cn("text-xs leading-tight", isActive ? "font-semibold" : "font-medium")}>{item.label}</span>
             </Link>
           );
         })}
@@ -53,7 +53,7 @@ export function MobileNav() {
               )}
             >
               <MoreHorizontal className="h-[22px] w-[22px]" strokeWidth={1.8} />
-              <span className="text-[10px] leading-tight font-medium">More</span>
+              <span className="text-xs leading-tight font-medium">More</span>
             </button>
           </SheetTrigger>
           <SheetContent side="bottom" className="rounded-t-2xl">

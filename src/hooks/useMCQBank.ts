@@ -1,6 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
 import { sampleMCQs, type MCQ } from "@/data/sampleMCQs";
 
+export type { MCQ };
+
 /**
  * Fetch MCQs from the Cloud mcq_bank table.
  * Falls back to local sampleMCQs if no DB results or user is unauthenticated.

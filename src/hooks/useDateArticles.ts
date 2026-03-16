@@ -1,7 +1,7 @@
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, addDays, parseISO, isToday as isTodayFn } from "date-fns";
-import type { GsTag } from "@/components/issues/IssueCard";
+import { normalizeAndDedup, dedupeTagsAgainstPapers, type GsTag } from "@/lib/tags";
 
 export type TieredArticle = {
   id: string;
@@ -24,33 +24,15 @@ export const TIER_LABELS: Record<string, string> = {
   rapid_fire: "Quick Bites",
 };
 
-export function normalizeTag(tag: string): GsTag | null {
-  const t = tag.toLowerCase();
-  if (t.includes("polity") || t.includes("governance")) return "polity";
-  if (t.includes("economy")) return "economy";
-  if (t.includes("environment") || t.includes("ecology") || t.includes("climate")) return "environment";
-  if (t.includes("international") || t === "ir") return "ir";
-  if (t.includes("science") || t.includes("tech")) return "science";
-  if (t.includes("ethics")) return "ethics";
-  if (t.includes("history") || t.includes("culture")) return "history";
-  if (t.includes("geography")) return "geography";
-  if (t.includes("society") || t.includes("social")) return "society";
-  if (t.includes("essay")) return "essay";
-  return null;
-}
-
 const SELECT_FIELDS =
   "id, title, summary, syllabus_tags, source_name, source_url, published_at, upsc_relevance, depth_tier, gs_papers";
 
 function mapArticle(a: any): TieredArticle {
   const gsPapers: string[] = a.gs_papers ?? [];
-  // Lowercase GS paper names for cross-type dedup (e.g. "Essay" in gsPapers vs "essay" in gsTags)
-  const gsPapersLower = new Set(gsPapers.map((p: string) => p.toLowerCase()));
-  const gsTags: GsTag[] = [...new Set(
-    (a.syllabus_tags ?? [])
-      .map((t: string) => normalizeTag(t))
-      .filter(Boolean) as GsTag[]
-  )].filter(tag => !gsPapersLower.has(tag));
+  // Normalize + deduplicate: collapses "S&T"+"Science"+"ISRO" → ["science"]
+  const allTags = normalizeAndDedup(a.syllabus_tags ?? []);
+  // Cross-dedup against GS paper badges to reduce visual clutter
+  const gsTags = dedupeTagsAgainstPapers(allTags, gsPapers);
   return {
     id: a.id,
     title: a.title,
