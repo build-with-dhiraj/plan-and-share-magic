@@ -132,8 +132,8 @@ async function fetchArticlesForDate(dateString: string): Promise<TieredArticle[]
   const nextDay = format(addDays(parseISO(dateString), 1), "yyyy-MM-dd");
   const dayEnd = `${nextDay}T00:00:00+05:30`;
 
-  // Include articles published OR ingested within the date range
-  const { data } = await supabase
+  // First try: processed articles with summaries (best quality)
+  let { data } = await supabase
     .from("articles")
     .select(SELECT_FIELDS)
     .eq("processed", true)
@@ -141,6 +141,17 @@ async function fetchArticlesForDate(dateString: string): Promise<TieredArticle[]
     .or(`and(published_at.gte.${dayStart},published_at.lt.${dayEnd}),and(published_at.is.null,ingested_at.gte.${dayStart},ingested_at.lt.${dayEnd})`)
     .order("ingested_at", { ascending: false })
     .limit(30);
+
+  // Fallback: if no processed articles, show ALL articles for this date (even unprocessed)
+  if (!data || data.length === 0) {
+    const fallback = await supabase
+      .from("articles")
+      .select(SELECT_FIELDS)
+      .or(`and(published_at.gte.${dayStart},published_at.lt.${dayEnd}),and(published_at.is.null,ingested_at.gte.${dayStart},ingested_at.lt.${dayEnd})`)
+      .order("ingested_at", { ascending: false })
+      .limit(30);
+    data = fallback.data;
+  }
 
   const filtered = filterByRelevance(data ?? []);
   const diverse = enforceSourceDiversity(filtered);
