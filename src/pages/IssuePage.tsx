@@ -186,7 +186,7 @@ const IssuePage = () => {
   const detailedAnalysis = (article.detailed_analysis as { heading: string; content: string }[] | null) ?? null;
   const conclusion: string | null = article.conclusion ?? null;
   const faqs = (article.faqs as { question: string; answer: string }[] | null) ?? null;
-  const hyperlinkedTerms = (article.hyperlinked_terms as { term: string; slug: string }[] | null) ?? [];
+  const hyperlinkedTerms: { term: string; slug: string }[] = [];
 
   const timeSince = article.published_at
     ? formatTimeSince(new Date(article.published_at))
@@ -449,7 +449,7 @@ function ArticleFeedback({ articleId }: { articleId: string }) {
     setSubmitted(vote);
     // Fire-and-forget — store in article_feedback table (best-effort)
     try {
-      await supabase.from("article_feedback").insert({
+      await (supabase as any).from("article_feedback").insert({
         article_id: articleId,
         vote,
         created_at: new Date().toISOString(),
