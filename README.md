@@ -1,73 +1,56 @@
-# Welcome to your Lovable project
+# UPSC Daily — Current Affairs & Practice Engine
 
-## Project info
+An AI-powered UPSC preparation app that curates daily current affairs, generates practice MCQs, and tracks your preparation progress.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Tech Stack
 
-## How can I edit this code?
+- **Frontend**: React 18 + TypeScript + Vite
+- **UI**: Tailwind CSS + shadcn/ui (Radix primitives)
+- **Backend**: Supabase (PostgreSQL, Auth, Edge Functions)
+- **Deployment**: Vercel (auto-deploys from `main`)
+- **AI Pipeline**: Supabase Edge Functions + OpenAI for content processing
 
-There are several ways of editing your application.
+## Development
 
-**Use Lovable**
+```bash
+# Clone the repo
+git clone https://github.com/build-with-dhiraj/plan-and-share-magic.git
+cd plan-and-share-magic
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+# Install dependencies
+npm install
 
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Start dev server (localhost:8080)
 npm run dev
+
+# Build for production
+npm run build
+
+# Run tests
+npm test
 ```
 
-**Edit a file directly in GitHub**
+## Development Workflow
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+| Tool | Purpose |
+|------|---------|
+| **Claude Code** | Complex architecture, multi-file refactors, planning |
+| **Google Antigravity** | AI-powered IDE for day-to-day coding |
+| **Google Stitch** | UI design & prototyping |
+| **GitHub** | Central repo — all tools push here |
+| **Vercel** | Auto-deploys on every push to `main` |
 
-**Use GitHub Codespaces**
+## Project Structure
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+```
+src/
+├── components/     # Reusable UI components (shadcn/ui based)
+├── hooks/          # Custom React hooks (auth, data fetching, quiz state)
+├── integrations/   # Supabase client & types
+├── lib/            # Utilities (tags, utils)
+├── pages/          # Route pages (Index, Practice, Saved, etc.)
+└── test/           # Unit tests
+supabase/
+├── functions/      # Edge functions (process-content, mentor-chat, ingest-rss)
+└── migrations/     # Database schema migrations
+```
