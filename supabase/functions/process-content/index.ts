@@ -117,12 +117,71 @@ Deno.serve(async (req) => {
           continue;
         }
 
+        // ──── STEP 0: CONTENT ENRICHMENT — Generate content for thin articles ────
+        const MIN_CONTENT_LENGTH = 300;
+        let articleContent = article.content || "";
+        
+        if (articleContent.length < MIN_CONTENT_LENGTH) {
+          console.log(`Short content (${articleContent.length} chars) for "${article.title}" — generating via AI...`);
+          
+          const enrichPrompt = `You are a senior UPSC current affairs analyst. Write a comprehensive, factually accurate article about this news topic.
+
+HEADLINE: ${article.title}
+SNIPPET: ${articleContent}
+SOURCE: ${article.source_name || "News"}
+
+Write a detailed 600-800 word article covering:
+1. What happened (the news event/development)
+2. Background and context (why this matters)
+3. Key facts, figures, and stakeholders involved
+4. Constitutional/legal/policy framework relevant to this topic
+5. Significance for India's governance, economy, society, or international relations
+6. How this connects to UPSC syllabus topics
+
+IMPORTANT RULES:
+- Write factually. If you're uncertain about specific numbers, use hedging language.
+- Focus on the policy/governance angle that UPSC cares about.
+- Include names of relevant government bodies, acts, schemes, and constitutional provisions.
+- Write in a professional, analytical tone suitable for IAS preparation.
+- Do NOT include meta-commentary about the article itself.`;
+
+          try {
+            const enrichResponse = await fetch(AI_URL, {
+              method: "POST",
+              headers: { "api-key": AZURE_API_KEY, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                messages: [
+                  { role: "system", content: "You are a UPSC current affairs expert who writes comprehensive, factual articles for IAS aspirants." },
+                  { role: "user", content: enrichPrompt },
+                ],
+                max_tokens: 1500,
+                temperature: 0.3,
+              }),
+            });
+
+            if (enrichResponse.ok) {
+              const enrichResult = await enrichResponse.json();
+              const generatedContent = enrichResult.choices?.[0]?.message?.content;
+              if (generatedContent && generatedContent.length > 200) {
+                articleContent = generatedContent;
+                // Save enriched content back to DB
+                await supabase.from("articles").update({ content: articleContent }).eq("id", article.id);
+                console.log(`  ✅ Generated ${articleContent.length} chars of content`);
+              }
+            } else {
+              console.log(`  ⚠️ Content generation failed: ${enrichResponse.status}`);
+            }
+          } catch (enrichErr) {
+            console.log(`  ⚠️ Content generation error: ${enrichErr}`);
+          }
+        }
+
         // ──── STEP 1: TRIAGE — Score UPSC relevance ────
         const triagePrompt = `You are a UPSC Civil Services exam content curator. Evaluate this article for UPSC relevance.
 
 ARTICLE TITLE: ${article.title}
 SOURCE: ${article.source_name}
-CONTENT (first 500 chars): ${(article.content || article.title).slice(0, 500)}
+CONTENT (first 500 chars): ${(articleContent || article.title).slice(0, 500)}
 
 Score the article's UPSC relevance from 0.0 to 1.0:
 - 0.0-0.2: No UPSC relevance (local crime, entertainment, sports scores, obituaries)
@@ -225,7 +284,7 @@ Also assign a depth_tier:
 
 ARTICLE TITLE: ${article.title}
 SOURCE: ${article.source_name} (${article.source_url})
-CONTENT: ${article.content || article.title}
+CONTENT: ${articleContent || article.title}
 DEPTH TIER: ${depthTier}
 UPSC RELEVANCE: ${relevance}
 
@@ -241,9 +300,14 @@ Generate comprehensive UPSC study material:
 8. **gs_papers**: Which GS papers this maps to (GS-1, GS-2, GS-3, GS-4)
 9. **syllabus_tags**: Specific UPSC syllabus sub-topics from: ${SYLLABUS_TOPICS.join(", ")}
 10. **facts**: 2-5 factual statements for Prelims (each with syllabus_tags and confidence 0.5-1.0)
-11. **hyperlinked_terms**: Extract 3-10 important UPSC terms, institutions, schemes, acts, or concepts mentioned in the article that a student might want to look up. For each, provide the term as it appears and a URL-friendly slug. Example: [{"term": "NITI Aayog", "slug": "niti-aayog"}, {"term": "Article 370", "slug": "article-370"}]
+11. **hyperlinked_terms**: Extract 3-10 important UPSC terms, institutions, schemes, acts, or concepts mentioned in the article that a student might want to look up. For each, provide the term as it appears and a URL-friendly slug.
+12. **predictive_intent**: Proactively predict the student's learning journey and intent:
+    - **likely_confusion**: Array of 1-2 specific points, acronyms, or historical context mentioned in the article that an average student might find confusing or need prior knowledge for.
+    - **foundation_bridge**: Link this CURRENT event to a STATIC foundation topic in the UPSC syllabus (e.g., "Bridges to GS-2: Article 123 - Power of President to promulgate Ordinances"). Be specific.
+    - **next_action_thought**: A deep, synthesis-oriented question that makes the student think about the broader implications of this news.
+    - **action_cta**: A clear, motivating next step (e.g., "Revise your notes on the Finance Commission" or "Compare this with the 2019 Amendment").
 
-IMPORTANT: All content must be directly derived from the article. No hallucination.
+IMPORTANT: All content must be directly derived from the article or its direct connection to the UPSC syllabus. No hallucination.
 ${TAG_INSTRUCTION}`;
 
         const extractResponse = await fetch(AI_URL, {
@@ -337,6 +401,31 @@ ${TAG_INSTRUCTION}`;
                         },
                         description: "3-10 important UPSC terms/institutions/schemes to hyperlink",
                       },
+                      predictive_intent: {
+                        type: "object",
+                        properties: {
+                          likely_confusion: {
+                            type: "array",
+                            items: { type: "string" },
+                            description: "1-2 points a student might find confusing",
+                          },
+                          foundation_bridge: {
+                            type: "string",
+                            description: "Link to a static GS foundation topic",
+                          },
+                          next_action_thought: {
+                            type: "string",
+                            description: "A synthesis question to provoke thinking",
+                          },
+                          action_cta: {
+                            type: "string",
+                            description: "A clear motivating next step",
+                          },
+                        },
+                        required: ["likely_confusion", "foundation_bridge", "next_action_thought", "action_cta"],
+                        additionalProperties: false,
+                        description: "Proactive, intent-prediction insights",
+                      },
                     },
                     required: [
                       "summary",
@@ -350,6 +439,7 @@ ${TAG_INSTRUCTION}`;
                       "syllabus_tags",
                       "facts",
                       "hyperlinked_terms",
+                      "predictive_intent",
                     ],
                     additionalProperties: false,
                   },
@@ -406,6 +496,7 @@ ${TAG_INSTRUCTION}`;
             faqs: extracted.faqs || null,
             gs_papers: extracted.gs_papers || [],
             hyperlinked_terms: extracted.hyperlinked_terms || [],
+            predictive_intent: extracted.predictive_intent || null,
           })
           .eq("id", article.id);
 
