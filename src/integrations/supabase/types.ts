@@ -27,7 +27,9 @@ export type Database = {
           layer: string | null
           mains_angle: string | null
           mains_question: string | null
+          hyperlinked_terms: Json | null
           prelims_keywords: string[] | null
+          predictive_intent: Json | null
           processed: boolean | null
           published_at: string | null
           source_name: string
@@ -50,6 +52,8 @@ export type Database = {
           mains_angle?: string | null
           mains_question?: string | null
           prelims_keywords?: string[] | null
+          hyperlinked_terms?: Json | null
+          predictive_intent?: Json | null
           processed?: boolean | null
           published_at?: string | null
           source_name: string
@@ -72,6 +76,8 @@ export type Database = {
           mains_angle?: string | null
           mains_question?: string | null
           prelims_keywords?: string[] | null
+          hyperlinked_terms?: Json | null
+          predictive_intent?: Json | null
           processed?: boolean | null
           published_at?: string | null
           source_name?: string
